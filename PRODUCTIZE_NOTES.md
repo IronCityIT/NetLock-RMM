@@ -165,6 +165,23 @@ operator-facing.
   One scan test first failed as a false positive (it matched the C# namespace `NetLock_RMM_...`); the
   regex was narrowed to the visible name "NetLock RMM".
 
+## Change 8 — CI for the fork's regression tests
+
+`.github/workflows/ironclad-tests.yml` runs on pull requests, pushes to
+`productize/iron-clad-support`, and `workflow_dispatch`. It runs the server tests (MariaDB 10.11
+service container), the agent/tray tests and the web console tests, plus whitespace format checks.
+Permissions are `contents: read`. The DB password is a throwaway value for the ephemeral CI
+container, not a real secret. The repo is public, so Actions runs are free (the billing restriction
+applies only to private repos).
+**Local validation.** YAML parses; `actionlint` is clean. Every step was run locally: 11/11, 41/41 and
+16/16 tests, format OK. The CI connection-string form (TCP + password) was checked against the local
+MariaDB with a temporary user, which was dropped afterwards.
+**CI evidence.** Run 35935599780 passed (11/41/16 tests, including the MariaDB-backed notification
+tests). It warned that Node 20 is deprecated, so the actions were moved to checkout@v7 and
+setup-dotnet@v6. Run 35935731030 then passed with the same counts and no annotations.
+**Embargo note.** The embargoed relay tests are not on this branch. When the relay branch is
+published, CI picks them up automatically.
+
 ## Verified (no change needed) — notification tenant scoping
 
 `Events/Sender.Check_Notification` resolves the event's device → `tenant_id` and delivers to a
