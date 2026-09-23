@@ -190,3 +190,27 @@ public sealed class Notification_Batch_Db_Tests : IAsyncLifetime
         await new MySqlCommand(sql, conn).ExecuteNonQueryAsync();
     }
 }
+
+public class Uptime_Notification_Tests
+{
+    // Keys of NetLock_RMM_Server.Events.Sender.Notifications, one per delivery channel
+    private static readonly string[] Channel_Keys = { "mail", "microsoft_teams", "telegram", "ntfy_sh", "webhook" };
+
+    [Fact]
+    public void Legacy_uptime_json_never_enabled_webhooks()
+    {
+        using var legacy = System.Text.Json.JsonDocument.Parse(@"{""mail"":true,""microsoft_teams"":true,""telegram"":true,""ntfy_sh"":true}");
+        Assert.False(legacy.RootElement.TryGetProperty("webhook", out _));
+    }
+
+    [Fact]
+    public void Uptime_events_enable_every_delivery_channel()
+    {
+        using var doc = System.Text.Json.JsonDocument.Parse(Notification_Batch.Uptime_Notification_Json);
+
+        foreach (string key in Channel_Keys)
+            Assert.True(doc.RootElement.GetProperty(key).GetBoolean(), key);
+
+        Assert.Equal(Notification_Batch.Channels.Count, Channel_Keys.Length);
+    }
+}
