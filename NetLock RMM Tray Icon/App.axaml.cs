@@ -91,7 +91,7 @@ namespace NetLock_RMM_Tray_Icon
                     _trayIcon = new TrayIcon
                     {
                         Icon = trayIconImage,
-                        ToolTipText = Handler.AppConfig.TrayConfig?.Title ?? "NetLock RMM",
+                        ToolTipText = Handler.AppConfig.TrayConfig?.Title ?? Branding.Product_Name,
                         IsVisible = true
                     };
                     
@@ -282,7 +282,7 @@ namespace NetLock_RMM_Tray_Icon
                     return;
                 
                 // Update tooltip text
-                _trayIcon.ToolTipText = Handler.AppConfig.TrayConfig?.Title ?? "NetLock RMM";
+                _trayIcon.ToolTipText = Handler.AppConfig.TrayConfig?.Title ?? Branding.Product_Name;
                 
                 // Update icon
                 WindowIcon? trayIconImage = null;
@@ -409,7 +409,7 @@ namespace NetLock_RMM_Tray_Icon
                 var about = Handler.AppConfig.AboutConfig ?? new Handler.AboutInterfaceConfig();
                 var dialog = new Window
                 {
-                    Title = about.WindowTitle ?? "About NetLock RMM",
+                    Title = about.WindowTitle ?? Branding.About_Window_Title,
                     Width = 450,
                     MinHeight = 320,
                     MaxHeight = 700,
@@ -535,7 +535,7 @@ namespace NetLock_RMM_Tray_Icon
                 
                 content.Children.Add(new TextBlock
                 {
-                    Text = about.Title ?? "NetLock RMM",
+                    Text = about.Title ?? Branding.Product_Name,
                     FontSize = 24,
                     FontWeight = FontWeight.Bold,
                     HorizontalAlignment = HorizontalAlignment.Center,
@@ -592,7 +592,7 @@ namespace NetLock_RMM_Tray_Icon
                 {
                     content.Children.Add(new TextBlock
                     {
-                        Text = about.CopyrightText ?? $"© {DateTime.Now.Year} Copyright 0x101 GmbH. All rights reserved.",
+                        Text = about.CopyrightText ?? Branding.Legal_Notice(DateTime.Now.Year),
                         FontSize = 12,
                         HorizontalAlignment = HorizontalAlignment.Center,
                         Foreground = new SolidColorBrush(Color.Parse("#95A5A6")),

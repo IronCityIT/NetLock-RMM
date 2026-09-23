@@ -122,6 +122,24 @@ reconnect, with no grace period. A network blip produces a critical "Device disc
 followed by "Device connected". This is the main flapping source for the dedup/suppression backlog
 item (window length needs Bill's call).
 
+## Change 6 — Tray app client-facing branding (priority 5)
+
+End users see the tray app. Upstream hardcoded "NetLock RMM" in the tray tooltip fallback, the About
+dialog title and heading fallbacks, the Actions sidebar title and label, and the Chat window title. These
+now come from `NetLock RMM Tray Icon/Branding.cs` ("Iron Clad Support"). Policy-provided `TrayConfig`
+values still win. Install paths, config paths and internal identifiers are unchanged, to stay compatible
+with upstream and with existing installs.
+**License:** the project is AGPL-3.0. Section 5(d) requires interactive UIs to keep Appropriate Legal
+Notices, so the About copyright fallback keeps the upstream attribution: "Iron Clad Support is based
+on NetLock RMM. © <year> 0x101 GmbH. Licensed under the GNU AGPL v3."
+**Validation:** agent/tray tests 41/41. With a temporary encryption stub the tray app compiles with
+0 errors. A deliberately bad `x:Static` reference fails the Avalonia XAML compile (AVLN2000), so the
+bindings really are checked. The source-scan regression test fails against the upstream files and
+lists all 5 hardcoded strings.
+**Compliance item for Bill:** AGPL-3.0 section 13 requires offering the modified source to users who
+interact with the modified web console/server over a network. The fork is public, but the web UI
+should link to it. The upstream footer and link need checking before rebranding the console.
+
 ## Verified (no change needed) — notification tenant scoping
 
 `Events/Sender.Check_Notification` resolves the event's device → `tenant_id` and delivers to a

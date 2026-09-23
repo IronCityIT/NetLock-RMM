@@ -19,6 +19,7 @@
        parts are stripped), so dependency-free agent files are linked in directly. -->
   <ItemGroup>
     <Compile Include="../../NetLock RMM Agent Comm/Global/Sensors/Schedule_Time.cs" Link="Agent/Schedule_Time.cs" />
+    <Compile Include="../../NetLock RMM Tray Icon/Branding.cs" Link="Tray/Branding.cs" />
   </ItemGroup>
 
 </Project>
