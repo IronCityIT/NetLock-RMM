@@ -676,9 +676,9 @@
                 else
                 {
                     <!-- Light Mode Logo -->
-                    <MudImage Src="media/images/NetLock-RMM-Logo-Transparent.png" Alt="NetLock RMM Logo" Height="35" Class="mr-3 logo-pulse appbar-logo-light" Style="max-width: 150px; object-fit: contain;" />
+                    <MudImage Src="media/images/NetLock-RMM-Logo-Transparent.png" Alt="@($"{NetLock_RMM_Web_Console.Configuration.Web_Console.title} Logo")" Height="35" Class="mr-3 logo-pulse appbar-logo-light" Style="max-width: 150px; object-fit: contain;" />
                     <!-- Dark Mode Logo -->
-                    <MudImage Src="media/images/NetLock-Logo-Dark-Transparent.png" Alt="NetLock RMM Logo" Height="35" Class="mr-3 logo-pulse appbar-logo-dark" Style="max-width: 150px; object-fit: contain;" />
+                    <MudImage Src="media/images/NetLock-Logo-Dark-Transparent.png" Alt="@($"{NetLock_RMM_Web_Console.Configuration.Web_Console.title} Logo")" Height="35" Class="mr-3 logo-pulse appbar-logo-dark" Style="max-width: 150px; object-fit: contain;" />
                 }
                 <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => DrawerToggle())" />
 
@@ -714,7 +714,7 @@
                         <MudIconButton Icon="@Icons.Material.Filled.InstallDesktop" Color="Color.Inherit" Title="Agent Download" OnClick="@Agent_Download_Dialog" />
                     }
                     <MudIconButton Icon="@(DarkLightModeButtonIcon)" Color="Color.Inherit" OnClick="@ShowDarkModeInfoDialog" Title="Dark/Light Mode" />
-                    <MudIconButton Icon="@Icons.Custom.Brands.GitHub" Color="Color.Inherit" Href="https://github.com/0x101-Cyber-Security/NetLock-RMM" Title="GitHub" Target="_blank" />
+                    <MudIconButton Icon="@Icons.Custom.Brands.GitHub" Color="Color.Inherit" Href="@NetLock_RMM_Web_Console.Configuration.Web_Console.sourceCodeUrl" Title="Source code (AGPL-3.0)" Target="_blank" />
                     <MudIconButton Icon="@Icons.Material.Filled.MenuBook" Color="Color.Inherit" Href="https://netlockrmm.com/docs" Title="@Localizer["documentation"]" Target="_blank" />
                     <MudIconButton Icon="@Icons.Material.Filled.Support" Color="Color.Inherit" OnClick="@ShowSupportDialog" Title="Support" />
                     <MudIconButton Icon="@Icons.Custom.Brands.Discord" Color="Color.Inherit" Href="https://discord.gg/HqUpZgtX4U" Title="Discord" Target="_blank" />
@@ -735,8 +735,8 @@
                         <MudMenuItem OnClick="@Agent_Download_Dialog">@Localizer["agent_download"]</MudMenuItem>
                     }
                     <MudMenuItem OnClick="@ShowDarkModeInfoDialog" Icon="@(DarkLightModeButtonIcon)">Dark/Light Mode</MudMenuItem>
-                    <MudMenuItem Href="https://github.com/0x101-Cyber-Security/NetLock-RMM/issues" Target="_blank">@Localizer["report_a_bug"]</MudMenuItem>
-                    <MudMenuItem Href="https://github.com/0x101-Cyber-Security/NetLock-RMM" Target="_blank">GitHub</MudMenuItem>
+                    <MudMenuItem Href="@NetLock_RMM_Web_Console.Configuration.Branding.Issues_Url(NetLock_RMM_Web_Console.Configuration.Web_Console.sourceCodeUrl)" Target="_blank">@Localizer["report_a_bug"]</MudMenuItem>
+                    <MudMenuItem Href="@NetLock_RMM_Web_Console.Configuration.Web_Console.sourceCodeUrl" Target="_blank">Source code (AGPL-3.0)</MudMenuItem>
                     <MudMenuItem Href="https://docs.netlockrmm.com/en/home" Target="_blank">@Localizer["documentation"]</MudMenuItem>
                     <MudMenuItem OnClick="@ShowSupportDialog">@Localizer["support"]</MudMenuItem>
                     <MudMenuItem Href="https://discord.gg/HqUpZgtX4U" Target="_blank">Discord</MudMenuItem>

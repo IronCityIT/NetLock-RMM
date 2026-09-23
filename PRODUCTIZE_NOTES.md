@@ -136,9 +136,34 @@ on NetLock RMM. © <year> 0x101 GmbH. Licensed under the GNU AGPL v3."
 0 errors. A deliberately bad `x:Static` reference fails the Avalonia XAML compile (AVLN2000), so the
 bindings really are checked. The source-scan regression test fails against the upstream files and
 lists all 5 hardcoded strings.
-**Compliance item for Bill:** AGPL-3.0 section 13 requires offering the modified source to users who
-interact with the modified web console/server over a network. The fork is public, but the web UI
-should link to it. The upstream footer and link need checking before rebranding the console.
+**Compliance item:** AGPL-3.0 section 13 requires offering the modified source to users who interact
+with the modified web console over a network. Addressed in Change 7.
+
+## Change 7 — Web console product name and AGPL source offer (priority 5)
+
+**Finding.** `Web_Console.title` was never assigned (always "NetLock RMM"). The browser `<title>`, logo
+alt text and 2FA issuer (shown in users' authenticator apps) were hardcoded "NetLock RMM". The console's
+GitHub and "report a bug" links pointed at upstream, which does not satisfy AGPL-3.0 section 13 for a
+modified deployment: the offer must be for the source of the modified version.
+**Change.** New `Configuration/Branding.cs` and two optional appsettings keys, `Webinterface:Title`
+(default "Iron Clad Support") and `Webinterface:SourceCodeUrl` (default this fork; only absolute
+http(s) URLs are accepted, anything else falls back). These now drive the browser title, header, logo
+alt text, 2FA issuer, the source-code link (tooltip "Source code (AGPL-3.0)") and "report a bug"
+(`<source>/issues`). The 2FA issuer is only a label in the setup QR code, so existing enrollments
+are unaffected.
+**Not changed (needs Iron City assets):** the logo images (`media/images/NetLock-*.png`). The
+existing `logoBase64` setting and a custom palette can already override them at runtime, and ~90
+other "NetLock" strings (agent download dialog, settings pages, localization resources) are
+operator-facing.
+**Validation.**
+- The console cannot compile from public source: a stripped block removes a closing brace in
+  Program.cs, and 756 errors remain even with a temporary brace and a `ThemePaletteConfig` stub. The
+  scratchpad harness compares the line-independent error multiset: unchanged (756 before and after).
+  A planted bad reference in App.razor is reported by the harness (757), so the comparison covers the
+  edited files.
+- `tests/IronClad.WebConsole.Tests` 16/16. The 3 source-scan tests fail against the upstream files.
+  One scan test first failed as a false positive (it matched the C# namespace `NetLock_RMM_...`); the
+  regex was narrowed to the visible name "NetLock RMM".
 
 ## Verified (no change needed) — notification tenant scoping
 

@@ -733,7 +733,7 @@
                     }
                     else
                     {
-                        <img src="media/images/NetLock-Logo-Dark-Transparent.png" alt="NetLock RMM Logo"/>
+                        <img src="media/images/NetLock-Logo-Dark-Transparent.png" alt="@($"{NetLock_RMM_Web_Console.Configuration.Web_Console.title} Logo")"/>
                     }
                 </div>
 
@@ -1601,7 +1601,7 @@
     {
         Logging.Handler.Debug("/login -> Two_Factor_Authentification_Setup", "requested for user", "username: " + username + " role: " + role);
 
-        SetupCode setupInfo = tfa.GenerateSetupCode("NetLock RMM - Instance", username, two_factor_account_secret_key, false, 3);
+        SetupCode setupInfo = tfa.GenerateSetupCode(NetLock_RMM_Web_Console.Configuration.Branding.Two_Factor_Issuer(NetLock_RMM_Web_Console.Configuration.Web_Console.title), username, two_factor_account_secret_key, false, 3);
         two_factor_qrCodeImageUrl = setupInfo.QrCodeSetupImageUrl;
         two_factor_manualEntrySetupCode = setupInfo.ManualEntryKey;
 
