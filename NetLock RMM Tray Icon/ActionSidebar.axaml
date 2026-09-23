@@ -1,7 +1,8 @@
 <Window xmlns="https://github.com/avaloniaui"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        xmlns:local="using:NetLock_RMM_Tray_Icon"
         x:Class="NetLock_RMM_Tray_Icon.ActionSidebar"
-        Title="NetLock RMM Actions"
+        Title="{x:Static local:Branding.Actions_Window_Title}"
         Width="280" Height="800"
         CanResize="False"
         ShowInTaskbar="False"
@@ -352,7 +353,7 @@
 			        Padding="15,8">
 				<Grid ColumnDefinitions="*,Auto">
 					<TextBlock Grid.Column="0"
-					          Text="NetLock RMM"
+					          Text="{x:Static local:Branding.Product_Name}"
 					          FontSize="11"
 					          Foreground="#95A5A6"
 					          VerticalAlignment="Center"/>
