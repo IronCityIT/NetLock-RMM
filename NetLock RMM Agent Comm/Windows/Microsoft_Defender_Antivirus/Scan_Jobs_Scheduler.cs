@@ -1,4 +1,5 @@
-﻿using System;
+﻿using Global.Sensors;
+using System;
 using System.IO;
 using System.Collections.Generic;
 using System.Linq;
@@ -115,6 +116,9 @@ namespace Windows.Microsoft_Defender_Antivirus
 
                     Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "Check scan job execution", "Job: " + job_item.name + " time_scheduler_type: " + job_item.time_scheduler_type + " enabled: " + job_item.enabled);
 
+                    // Iron Clad Support: read last_run in one culture-independent format (see Global.Sensors.Schedule_Time)
+                    job_item.last_run = Schedule_Time.Normalize_Last_Run(job_item.last_run) ?? job_item.last_run;
+
                     // Check enabled
                     if (!job_item.enabled)
                     {
@@ -127,157 +131,157 @@ namespace Windows.Microsoft_Defender_Antivirus
 
                     if (job_item.time_scheduler_type == 0) // system boot
                     {
-                        Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "System boot", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + DateTime.Parse(job_item.last_run ?? DateTime.Now.ToString()) + " Last boot: " + os_up_time.ToString());
+                        Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "System boot", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + job_item.last_run + " Last boot: " + os_up_time.ToString());
 
                         // Check if last run is empty, if so set it to now
                         if (String.IsNullOrEmpty(job_item.last_run))
                         {
-                            job_item.last_run = DateTime.Now.ToString();
+                            job_item.last_run = Schedule_Time.Now();
                             string updated_job_json = JsonSerializer.Serialize(job_item);
                             File.WriteAllText(job, updated_job_json);
                         }
 
-                        if (DateTime.Parse(job_item.last_run) < os_up_time)
+                        if (Schedule_Time.Parse_Last_Run(job_item.last_run) < os_up_time)
                             execute = true;
                     }
                     else if (job_item.time_scheduler_type == 1) // date & time
                     {
-                        Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "date & time", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + DateTime.Parse(job_item.last_run ?? DateTime.Now.ToString()));
+                        Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "date & time", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + job_item.last_run);
 
-                        DateTime scheduledDateTime = DateTime.ParseExact($"{job_item.time_scheduler_date.Split(' ')[0]} {job_item.time_scheduler_time}", "dd.MM.yyyy HH:mm:ss", CultureInfo.InvariantCulture);
+                        DateTime scheduledDateTime = Schedule_Time.Parse_Schedule_Date_Time(job_item.time_scheduler_date, job_item.time_scheduler_time);
 
                         // Check if last run is empty, if so, subsract 24 hours from scheduled time to trigger the execution
                         if (String.IsNullOrEmpty(job_item.last_run))
                         {
-                            job_item.last_run = (scheduledDateTime - TimeSpan.FromHours(24)).ToString();
+                            job_item.last_run = Schedule_Time.Format(scheduledDateTime - TimeSpan.FromHours(24));
                             string updated_job_json = JsonSerializer.Serialize(job_item);
                             File.WriteAllText(job, updated_job_json);
                         }
 
-                        DateTime lastRunDateTime = DateTime.Parse(job_item.last_run);
+                        DateTime lastRunDateTime = Schedule_Time.Parse_Last_Run(job_item.last_run);
 
-                        Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "date & time", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + DateTime.Parse(job_item.last_run) + " scheduledDateTime: " + scheduledDateTime.ToString() + " execute: " + execute.ToString());
+                        Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "date & time", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + Schedule_Time.Parse_Last_Run(job_item.last_run) + " scheduledDateTime: " + scheduledDateTime.ToString() + " execute: " + execute.ToString());
 
                         if (DateTime.Now.Date >= scheduledDateTime.Date && DateTime.Now.TimeOfDay >= scheduledDateTime.TimeOfDay && lastRunDateTime < scheduledDateTime)
                             execute = true;
                     }
                     else if (job_item.time_scheduler_type == 2) // all x seconds
                     {
-                        Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "all x seconds", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + DateTime.Parse(job_item.last_run ?? DateTime.Now.ToString()));
+                        Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "all x seconds", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + job_item.last_run);
 
                         // Check if last run is empty, if so set it to now
                         if (String.IsNullOrEmpty(job_item.last_run))
                         {
-                            job_item.last_run = DateTime.Now.ToString();
+                            job_item.last_run = Schedule_Time.Now();
                             string updated_job_json = JsonSerializer.Serialize(job_item);
                             File.WriteAllText(job, updated_job_json);
                         }
 
-                        if (DateTime.Parse(job_item.last_run) <= DateTime.Now - TimeSpan.FromSeconds(job_item.time_scheduler_seconds))
+                        if (Schedule_Time.Parse_Last_Run(job_item.last_run) <= DateTime.Now - TimeSpan.FromSeconds(job_item.time_scheduler_seconds))
                             execute = true;
 
-                        Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "all x seconds", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + DateTime.Parse(job_item.last_run) + " execute: " + execute.ToString());
+                        Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "all x seconds", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + Schedule_Time.Parse_Last_Run(job_item.last_run) + " execute: " + execute.ToString());
                     }
                     else if (job_item.time_scheduler_type == 3) // all x minutes
                     {
-                        Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "all x minutes", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + DateTime.Parse(job_item.last_run ?? DateTime.Now.ToString()));
+                        Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "all x minutes", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + job_item.last_run);
 
                         // Check if last run is empty, if so set it to now
                         if (String.IsNullOrEmpty(job_item.last_run))
                         {
-                            job_item.last_run = DateTime.Now.ToString();
+                            job_item.last_run = Schedule_Time.Now();
                             string updated_job_json = JsonSerializer.Serialize(job_item);
                             File.WriteAllText(job, updated_job_json);
                         }
 
-                        if (DateTime.Parse(job_item.last_run) < DateTime.Now - TimeSpan.FromMinutes(job_item.time_scheduler_minutes))
+                        if (Schedule_Time.Parse_Last_Run(job_item.last_run) < DateTime.Now - TimeSpan.FromMinutes(job_item.time_scheduler_minutes))
                             execute = true;
 
-                        Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "all x minutes", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + DateTime.Parse(job_item.last_run) + " execute: " + execute.ToString());
+                        Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "all x minutes", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + Schedule_Time.Parse_Last_Run(job_item.last_run) + " execute: " + execute.ToString());
                     }
                     else if (job_item.time_scheduler_type == 4) // all x hours
                     {
-                        Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "all x hours", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + DateTime.Parse(job_item.last_run ?? DateTime.Now.ToString()));
+                        Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "all x hours", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + job_item.last_run);
 
                         // Check if last run is empty, if so set it to now
                         if (String.IsNullOrEmpty(job_item.last_run))
                         {
-                            job_item.last_run = DateTime.Now.ToString();
+                            job_item.last_run = Schedule_Time.Now();
                             string updated_job_json = JsonSerializer.Serialize(job_item);
                             File.WriteAllText(job, updated_job_json);
                         }
 
-                        if (DateTime.Parse(job_item.last_run) < DateTime.Now - TimeSpan.FromHours(job_item.time_scheduler_hours))
+                        if (Schedule_Time.Parse_Last_Run(job_item.last_run) < DateTime.Now - TimeSpan.FromHours(job_item.time_scheduler_hours))
                             execute = true;
 
-                        Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "all x hours", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + DateTime.Parse(job_item.last_run) + " execute: " + execute.ToString());
+                        Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "all x hours", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + Schedule_Time.Parse_Last_Run(job_item.last_run) + " execute: " + execute.ToString());
                     }
                     else if (job_item.time_scheduler_type == 5) // date, all x seconds
                     {
-                        Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "date, all x seconds", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + DateTime.Parse(job_item.last_run ?? DateTime.Now.ToString()));
+                        Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "date, all x seconds", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + job_item.last_run);
 
                         // Check if last run is empty, if so set it to now
                         if (String.IsNullOrEmpty(job_item.last_run))
                         {
-                            job_item.last_run = DateTime.Now.ToString();
+                            job_item.last_run = Schedule_Time.Now();
                             string updated_job_json = JsonSerializer.Serialize(job_item);
                             File.WriteAllText(job, updated_job_json);
                         }
 
-                        if (DateTime.Now.Date == DateTime.Parse(job_item.time_scheduler_date).Date && DateTime.Parse(job_item.last_run) <= DateTime.Now - TimeSpan.FromSeconds(job_item.time_scheduler_seconds))
+                        if (DateTime.Now.Date == Schedule_Time.Parse_Schedule_Date(job_item.time_scheduler_date) && Schedule_Time.Parse_Last_Run(job_item.last_run) <= DateTime.Now - TimeSpan.FromSeconds(job_item.time_scheduler_seconds))
                             execute = true;
 
-                        Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "date, all x seconds", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + DateTime.Parse(job_item.last_run) + " execute: " + execute.ToString());
+                        Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "date, all x seconds", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + Schedule_Time.Parse_Last_Run(job_item.last_run) + " execute: " + execute.ToString());
                     }
                     else if (job_item.time_scheduler_type == 6) // date, all x minutes
                     {
-                        Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "date, all x minutes", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + DateTime.Parse(job_item.last_run ?? DateTime.Now.ToString()));
+                        Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "date, all x minutes", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + job_item.last_run);
 
                         // Check if last run is empty, if so set it to now
                         if (String.IsNullOrEmpty(job_item.last_run))
                         {
-                            job_item.last_run = DateTime.Now.ToString();
+                            job_item.last_run = Schedule_Time.Now();
                             string updated_job_json = JsonSerializer.Serialize(job_item);
                             File.WriteAllText(job, updated_job_json);
                         }
 
-                        if (DateTime.Now.Date == DateTime.Parse(job_item.time_scheduler_date).Date && DateTime.Parse(job_item.last_run) < DateTime.Now - TimeSpan.FromMinutes(job_item.time_scheduler_minutes))
+                        if (DateTime.Now.Date == Schedule_Time.Parse_Schedule_Date(job_item.time_scheduler_date) && Schedule_Time.Parse_Last_Run(job_item.last_run) < DateTime.Now - TimeSpan.FromMinutes(job_item.time_scheduler_minutes))
                             execute = true;
 
-                        Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "date, all x minutes", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + DateTime.Parse(job_item.last_run) + " execute: " + execute.ToString());
+                        Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "date, all x minutes", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + Schedule_Time.Parse_Last_Run(job_item.last_run) + " execute: " + execute.ToString());
                     }
                     else if (job_item.time_scheduler_type == 7) // date, all x hours
                     {
-                        Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "date, all x hours", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + DateTime.Parse(job_item.last_run ?? DateTime.Now.ToString()));
+                        Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "date, all x hours", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + job_item.last_run);
 
                         // Check if last run is empty, if so set it to now
                         if (String.IsNullOrEmpty(job_item.last_run))
                         {
-                            job_item.last_run = DateTime.Now.ToString();
+                            job_item.last_run = Schedule_Time.Now();
                             string updated_job_json = JsonSerializer.Serialize(job_item);
                             File.WriteAllText(job, updated_job_json);
                         }
 
-                        if (DateTime.Now.Date == DateTime.Parse(job_item.time_scheduler_date).Date && DateTime.Parse(job_item.last_run) < DateTime.Now - TimeSpan.FromHours(job_item.time_scheduler_hours))
+                        if (DateTime.Now.Date == Schedule_Time.Parse_Schedule_Date(job_item.time_scheduler_date) && Schedule_Time.Parse_Last_Run(job_item.last_run) < DateTime.Now - TimeSpan.FromHours(job_item.time_scheduler_hours))
                             execute = true;
 
-                        Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "date, all x hours", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + DateTime.Parse(job_item.last_run) + " execute: " + execute.ToString());
+                        Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "date, all x hours", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + Schedule_Time.Parse_Last_Run(job_item.last_run) + " execute: " + execute.ToString());
                     }
                     else if (job_item.time_scheduler_type == 8) // following days at X time
                     {
-                        Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "following days at X time", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + DateTime.Parse(job_item.last_run ?? DateTime.Now.ToString()));
+                        Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "following days at X time", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + job_item.last_run);
 
-                        DateTime scheduledDateTime = DateTime.ParseExact($"{job_item.time_scheduler_date.Split(' ')[0]} {job_item.time_scheduler_time}", "dd.MM.yyyy HH:mm:ss", CultureInfo.InvariantCulture);
+                        DateTime scheduledDateTime = Schedule_Time.Parse_Schedule_Date_Time(job_item.time_scheduler_date, job_item.time_scheduler_time);
 
                         // Check if last run is empty, if so, subsract 24 hours from scheduled time to trigger the execution
                         if (String.IsNullOrEmpty(job_item.last_run))
                         {
-                            job_item.last_run = (scheduledDateTime - TimeSpan.FromHours(24)).ToString();
+                            job_item.last_run = Schedule_Time.Format(scheduledDateTime - TimeSpan.FromHours(24));
                             string updated_job_json = JsonSerializer.Serialize(job_item);
                             File.WriteAllText(job, updated_job_json);
                         }
 
-                        DateTime lastRunDateTime = DateTime.Parse(job_item.last_run);
+                        DateTime lastRunDateTime = Schedule_Time.Parse_Last_Run(job_item.last_run);
 
                         if (DateTime.Now.DayOfWeek.ToString() == "Monday" && job_item.time_scheduler_monday && DateTime.Now.TimeOfDay >= scheduledDateTime.TimeOfDay && lastRunDateTime < scheduledDateTime)
                             execute = true;
@@ -300,108 +304,108 @@ namespace Windows.Microsoft_Defender_Antivirus
                         if (DateTime.Now.DayOfWeek.ToString() == "Sunday" && job_item.time_scheduler_sunday && DateTime.Now.TimeOfDay >= scheduledDateTime.TimeOfDay && lastRunDateTime < scheduledDateTime)
                             execute = true;
 
-                        Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "following days at X time", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + DateTime.Parse(job_item.last_run) + " execute: " + execute.ToString());
+                        Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "following days at X time", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + Schedule_Time.Parse_Last_Run(job_item.last_run) + " execute: " + execute.ToString());
                     }
                     else if (job_item.time_scheduler_type == 9) // following days, x seconds
                     {
-                        Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "following days, x seconds", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + DateTime.Parse(job_item.last_run ?? DateTime.Now.ToString()));
+                        Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "following days, x seconds", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + job_item.last_run);
 
                         // Check if last run is empty, if so set it to now
                         if (String.IsNullOrEmpty(job_item.last_run))
                         {
-                            job_item.last_run = DateTime.Now.ToString();
+                            job_item.last_run = Schedule_Time.Now();
                             string updated_job_json = JsonSerializer.Serialize(job_item);
                             File.WriteAllText(job, updated_job_json);
                         }
 
-                        if (DateTime.Now.DayOfWeek.ToString() == "Monday" && job_item.time_scheduler_monday && DateTime.Parse(job_item.last_run) <= DateTime.Now - TimeSpan.FromSeconds(job_item.time_scheduler_seconds))
+                        if (DateTime.Now.DayOfWeek.ToString() == "Monday" && job_item.time_scheduler_monday && Schedule_Time.Parse_Last_Run(job_item.last_run) <= DateTime.Now - TimeSpan.FromSeconds(job_item.time_scheduler_seconds))
                             execute = true;
 
-                        if (DateTime.Now.DayOfWeek.ToString() == "Tuesday" && job_item.time_scheduler_tuesday && DateTime.Parse(job_item.last_run) <= DateTime.Now - TimeSpan.FromSeconds(job_item.time_scheduler_seconds))
+                        if (DateTime.Now.DayOfWeek.ToString() == "Tuesday" && job_item.time_scheduler_tuesday && Schedule_Time.Parse_Last_Run(job_item.last_run) <= DateTime.Now - TimeSpan.FromSeconds(job_item.time_scheduler_seconds))
                             execute = true;
 
-                        if (DateTime.Now.DayOfWeek.ToString() == "Wednesday" && job_item.time_scheduler_wednesday && DateTime.Parse(job_item.last_run) <= DateTime.Now - TimeSpan.FromSeconds(job_item.time_scheduler_seconds))
+                        if (DateTime.Now.DayOfWeek.ToString() == "Wednesday" && job_item.time_scheduler_wednesday && Schedule_Time.Parse_Last_Run(job_item.last_run) <= DateTime.Now - TimeSpan.FromSeconds(job_item.time_scheduler_seconds))
                             execute = true;
 
-                        if (DateTime.Now.DayOfWeek.ToString() == "Thursday" && job_item.time_scheduler_thursday && DateTime.Parse(job_item.last_run) <= DateTime.Now - TimeSpan.FromSeconds(job_item.time_scheduler_seconds))
+                        if (DateTime.Now.DayOfWeek.ToString() == "Thursday" && job_item.time_scheduler_thursday && Schedule_Time.Parse_Last_Run(job_item.last_run) <= DateTime.Now - TimeSpan.FromSeconds(job_item.time_scheduler_seconds))
                             execute = true;
 
-                        if (DateTime.Now.DayOfWeek.ToString() == "Friday" && job_item.time_scheduler_friday && DateTime.Parse(job_item.last_run) <= DateTime.Now - TimeSpan.FromSeconds(job_item.time_scheduler_seconds))
+                        if (DateTime.Now.DayOfWeek.ToString() == "Friday" && job_item.time_scheduler_friday && Schedule_Time.Parse_Last_Run(job_item.last_run) <= DateTime.Now - TimeSpan.FromSeconds(job_item.time_scheduler_seconds))
                             execute = true;
 
-                        if (DateTime.Now.DayOfWeek.ToString() == "Saturday" && job_item.time_scheduler_saturday && DateTime.Parse(job_item.last_run) <= DateTime.Now - TimeSpan.FromSeconds(job_item.time_scheduler_seconds))
+                        if (DateTime.Now.DayOfWeek.ToString() == "Saturday" && job_item.time_scheduler_saturday && Schedule_Time.Parse_Last_Run(job_item.last_run) <= DateTime.Now - TimeSpan.FromSeconds(job_item.time_scheduler_seconds))
                             execute = true;
 
-                        if (DateTime.Now.DayOfWeek.ToString() == "Sunday" && job_item.time_scheduler_sunday && DateTime.Parse(job_item.last_run) <= DateTime.Now - TimeSpan.FromSeconds(job_item.time_scheduler_seconds))
+                        if (DateTime.Now.DayOfWeek.ToString() == "Sunday" && job_item.time_scheduler_sunday && Schedule_Time.Parse_Last_Run(job_item.last_run) <= DateTime.Now - TimeSpan.FromSeconds(job_item.time_scheduler_seconds))
                             execute = true;
 
-                        Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "following days, x seconds", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + DateTime.Parse(job_item.last_run) + " execute: " + execute.ToString());
+                        Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "following days, x seconds", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + Schedule_Time.Parse_Last_Run(job_item.last_run) + " execute: " + execute.ToString());
                     }
                     else if (job_item.time_scheduler_type == 10) // following days, x minutes
                     {
                         // Check if last run is empty, if so set it to now
                         if (String.IsNullOrEmpty(job_item.last_run))
-                            job_item.last_run = DateTime.Now.ToString();
+                            job_item.last_run = Schedule_Time.Now();
 
-                        if (DateTime.Now.DayOfWeek.ToString() == "Monday" && job_item.time_scheduler_monday && DateTime.Parse(job_item.last_run) < DateTime.Now - TimeSpan.FromMinutes(job_item.time_scheduler_minutes))
+                        if (DateTime.Now.DayOfWeek.ToString() == "Monday" && job_item.time_scheduler_monday && Schedule_Time.Parse_Last_Run(job_item.last_run) < DateTime.Now - TimeSpan.FromMinutes(job_item.time_scheduler_minutes))
                             execute = true;
 
-                        if (DateTime.Now.DayOfWeek.ToString() == "Tuesday" && job_item.time_scheduler_tuesday && DateTime.Parse(job_item.last_run) < DateTime.Now - TimeSpan.FromMinutes(job_item.time_scheduler_minutes))
+                        if (DateTime.Now.DayOfWeek.ToString() == "Tuesday" && job_item.time_scheduler_tuesday && Schedule_Time.Parse_Last_Run(job_item.last_run) < DateTime.Now - TimeSpan.FromMinutes(job_item.time_scheduler_minutes))
                             execute = true;
 
-                        if (DateTime.Now.DayOfWeek.ToString() == "Wednesday" && job_item.time_scheduler_wednesday && DateTime.Parse(job_item.last_run) < DateTime.Now - TimeSpan.FromMinutes(job_item.time_scheduler_minutes))
+                        if (DateTime.Now.DayOfWeek.ToString() == "Wednesday" && job_item.time_scheduler_wednesday && Schedule_Time.Parse_Last_Run(job_item.last_run) < DateTime.Now - TimeSpan.FromMinutes(job_item.time_scheduler_minutes))
                             execute = true;
 
-                        if (DateTime.Now.DayOfWeek.ToString() == "Thursday" && job_item.time_scheduler_thursday && DateTime.Parse(job_item.last_run) < DateTime.Now - TimeSpan.FromMinutes(job_item.time_scheduler_minutes))
+                        if (DateTime.Now.DayOfWeek.ToString() == "Thursday" && job_item.time_scheduler_thursday && Schedule_Time.Parse_Last_Run(job_item.last_run) < DateTime.Now - TimeSpan.FromMinutes(job_item.time_scheduler_minutes))
                             execute = true;
 
-                        if (DateTime.Now.DayOfWeek.ToString() == "Friday" && job_item.time_scheduler_friday && DateTime.Parse(job_item.last_run) < DateTime.Now - TimeSpan.FromMinutes(job_item.time_scheduler_minutes))
+                        if (DateTime.Now.DayOfWeek.ToString() == "Friday" && job_item.time_scheduler_friday && Schedule_Time.Parse_Last_Run(job_item.last_run) < DateTime.Now - TimeSpan.FromMinutes(job_item.time_scheduler_minutes))
                             execute = true;
 
-                        if (DateTime.Now.DayOfWeek.ToString() == "Saturday" && job_item.time_scheduler_saturday && DateTime.Parse(job_item.last_run) < DateTime.Now - TimeSpan.FromMinutes(job_item.time_scheduler_minutes))
+                        if (DateTime.Now.DayOfWeek.ToString() == "Saturday" && job_item.time_scheduler_saturday && Schedule_Time.Parse_Last_Run(job_item.last_run) < DateTime.Now - TimeSpan.FromMinutes(job_item.time_scheduler_minutes))
                             execute = true;
 
-                        if (DateTime.Now.DayOfWeek.ToString() == "Sunday" && job_item.time_scheduler_sunday && DateTime.Parse(job_item.last_run) < DateTime.Now - TimeSpan.FromMinutes(job_item.time_scheduler_minutes))
+                        if (DateTime.Now.DayOfWeek.ToString() == "Sunday" && job_item.time_scheduler_sunday && Schedule_Time.Parse_Last_Run(job_item.last_run) < DateTime.Now - TimeSpan.FromMinutes(job_item.time_scheduler_minutes))
                             execute = true;
 
-                        Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "following days, x minutes", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + DateTime.Parse(job_item.last_run) + " execute: " + execute.ToString());
+                        Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "following days, x minutes", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + Schedule_Time.Parse_Last_Run(job_item.last_run) + " execute: " + execute.ToString());
                     }
                     else if (job_item.time_scheduler_type == 11) // following days, x hours
                     {
-                        DateTime scheduledDateTime = DateTime.ParseExact($"{job_item.time_scheduler_date.Split(' ')[0]} {job_item.time_scheduler_time}", "dd.MM.yyyy HH:mm:ss", CultureInfo.InvariantCulture);
+                        DateTime scheduledDateTime = Schedule_Time.Parse_Schedule_Date_Time(job_item.time_scheduler_date, job_item.time_scheduler_time);
 
                         // Check if last run is empty, if so, subsract 24 hours from scheduled time to trigger the execution
                         if (String.IsNullOrEmpty(job_item.last_run))
                         {
-                            job_item.last_run = (scheduledDateTime - TimeSpan.FromHours(24)).ToString();
+                            job_item.last_run = Schedule_Time.Format(scheduledDateTime - TimeSpan.FromHours(24));
                             string updated_job_json = JsonSerializer.Serialize(job_item);
                             File.WriteAllText(job, updated_job_json);
                         }
 
-                        DateTime lastRunDateTime = DateTime.Parse(job_item.last_run);
+                        DateTime lastRunDateTime = Schedule_Time.Parse_Last_Run(job_item.last_run);
 
-                        if (DateTime.Now.DayOfWeek.ToString() == "Monday" && job_item.time_scheduler_monday && DateTime.Parse(job_item.last_run) < DateTime.Now - TimeSpan.FromHours(job_item.time_scheduler_hours))
+                        if (DateTime.Now.DayOfWeek.ToString() == "Monday" && job_item.time_scheduler_monday && Schedule_Time.Parse_Last_Run(job_item.last_run) < DateTime.Now - TimeSpan.FromHours(job_item.time_scheduler_hours))
                             execute = true;
 
-                        if (DateTime.Now.DayOfWeek.ToString() == "Tuesday" && job_item.time_scheduler_tuesday && DateTime.Parse(job_item.last_run) < DateTime.Now - TimeSpan.FromHours(job_item.time_scheduler_hours))
+                        if (DateTime.Now.DayOfWeek.ToString() == "Tuesday" && job_item.time_scheduler_tuesday && Schedule_Time.Parse_Last_Run(job_item.last_run) < DateTime.Now - TimeSpan.FromHours(job_item.time_scheduler_hours))
                             execute = true;
 
-                        if (DateTime.Now.DayOfWeek.ToString() == "Wednesday" && job_item.time_scheduler_wednesday && DateTime.Parse(job_item.last_run) < DateTime.Now - TimeSpan.FromHours(job_item.time_scheduler_hours))
+                        if (DateTime.Now.DayOfWeek.ToString() == "Wednesday" && job_item.time_scheduler_wednesday && Schedule_Time.Parse_Last_Run(job_item.last_run) < DateTime.Now - TimeSpan.FromHours(job_item.time_scheduler_hours))
                             execute = true;
 
-                        if (DateTime.Now.DayOfWeek.ToString() == "Thursday" && job_item.time_scheduler_thursday && DateTime.Parse(job_item.last_run) < DateTime.Now - TimeSpan.FromHours(job_item.time_scheduler_hours))
+                        if (DateTime.Now.DayOfWeek.ToString() == "Thursday" && job_item.time_scheduler_thursday && Schedule_Time.Parse_Last_Run(job_item.last_run) < DateTime.Now - TimeSpan.FromHours(job_item.time_scheduler_hours))
                             execute = true;
 
-                        if (DateTime.Now.DayOfWeek.ToString() == "Friday" && job_item.time_scheduler_friday && DateTime.Parse(job_item.last_run) < DateTime.Now - TimeSpan.FromHours(job_item.time_scheduler_hours))
+                        if (DateTime.Now.DayOfWeek.ToString() == "Friday" && job_item.time_scheduler_friday && Schedule_Time.Parse_Last_Run(job_item.last_run) < DateTime.Now - TimeSpan.FromHours(job_item.time_scheduler_hours))
                             execute = true;
 
-                        if (DateTime.Now.DayOfWeek.ToString() == "Saturday" && job_item.time_scheduler_saturday && DateTime.Parse(job_item.last_run) < DateTime.Now - TimeSpan.FromHours(job_item.time_scheduler_hours))
+                        if (DateTime.Now.DayOfWeek.ToString() == "Saturday" && job_item.time_scheduler_saturday && Schedule_Time.Parse_Last_Run(job_item.last_run) < DateTime.Now - TimeSpan.FromHours(job_item.time_scheduler_hours))
                             execute = true;
 
-                        if (DateTime.Now.DayOfWeek.ToString() == "Sunday" && job_item.time_scheduler_sunday && DateTime.Parse(job_item.last_run) < DateTime.Now - TimeSpan.FromHours(job_item.time_scheduler_hours))
+                        if (DateTime.Now.DayOfWeek.ToString() == "Sunday" && job_item.time_scheduler_sunday && Schedule_Time.Parse_Last_Run(job_item.last_run) < DateTime.Now - TimeSpan.FromHours(job_item.time_scheduler_hours))
                             execute = true;
 
-                        Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "following days, x hours", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + DateTime.Parse(job_item.last_run) + " execute: " + execute.ToString());
+                        Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "following days, x hours", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + Schedule_Time.Parse_Last_Run(job_item.last_run) + " execute: " + execute.ToString());
                     }
 
                     // Execute if needed
@@ -465,7 +469,7 @@ namespace Windows.Microsoft_Defender_Antivirus
                             Global.Events.Logger.Insert_Event("0", "Microsoft Defender Antivirus", "Scanauftrag fertiggestellt. NetLock Bericht.", "Scan job: " + job_item.name + " (" + job_item.description + ") " + Environment.NewLine + Environment.NewLine + "Ergebnis: " + "Kann nicht abgerufen werden. Aktuell ist uns kein Weg bekannt, um das Ergebnis eines mit PowerShell ausgeführten Scanauftrags direkt zu ermitteln. Hast du eine Idee? Kontaktiere uns gerne.", Windows_Worker.microsoft_defender_antivirus_notifications_json, 0, 1);
 
                         // Update last run
-                        job_item.last_run = DateTime.Now.ToString();
+                        job_item.last_run = Schedule_Time.Now();
                         string updated_job_json = JsonSerializer.Serialize(job_item);
                         File.WriteAllText(job, updated_job_json);
 

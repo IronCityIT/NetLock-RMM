@@ -18,7 +18,10 @@ namespace Global.Sensors
         // InvariantCulture "G" pattern; the format upstream already uses for most writes.
         public const string Last_Run_Format = "MM/dd/yyyy HH:mm:ss";
 
-        private static readonly string[] Schedule_Date_Formats = { "yyyy-MM-dd", "dd.MM.yyyy" };
+        // yyyy-MM-dd: sensors/jobs dialogs. Scan-job dialogs store DateTime.ToString() in the web
+        // console request culture, which is en-US (M/d/yyyy) or de-DE (dd.MM.yyyy). The console
+        // never writes day-first dates with slashes, so M/d/yyyy is unambiguous here.
+        private static readonly string[] Schedule_Date_Formats = { "yyyy-MM-dd", "dd.MM.yyyy", "M/d/yyyy" };
 
         public static string Format(DateTime value) => value.ToString(Last_Run_Format, CultureInfo.InvariantCulture);
 
