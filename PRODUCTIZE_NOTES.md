@@ -176,6 +176,9 @@ applies only to private repos).
 **Local validation.** YAML parses; `actionlint` is clean. Every step was run locally: 11/11, 41/41 and
 16/16 tests, format OK. The CI connection-string form (TCP + password) was checked against the local
 MariaDB with a temporary user, which was dropped afterwards.
+**CI evidence.** Run 35935599780 passed (11/41/16 tests, including the MariaDB-backed notification
+tests). It warned that Node 20 is deprecated, so the actions were moved to checkout@v7 and
+setup-dotnet@v6. Run 35935731030 then passed with the same counts and no annotations.
 **Embargo note.** The embargoed relay tests are not on this branch. When the relay branch is
 published, CI picks them up automatically.
 
