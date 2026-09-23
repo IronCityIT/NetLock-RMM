@@ -107,6 +107,29 @@ dd.MM.yyyy or en-US M/d/yyyy, so slash dates are unambiguous.
 agent compiles with 0 errors when the temporary `String_Encryption` stub is present (stub not
 committed).
 
+## Fix 4 — Uptime (device offline/online) alerts never reached webhooks (priority 1)
+
+**Failure.** Webhook recipients can enable "Uptime Monitoring" in the console, but device
+connected/disconnected events never went to webhooks.
+**Root cause.** `Uptime_Monitoring/Handler.cs` hardcoded the event's `notification_json` as
+`{"mail","microsoft_teams","telegram","ntfy_sh"}` with no `"webhook"` key. `Sender.Smtp` only delivers
+a channel when that flag is true, and `Notifications.webhook` defaults to false.
+**Fix.** The flag set is now `Notification_Batch.Uptime_Notification_Json`, which includes `"webhook":true`.
+**Validation.** Server tests 11/11 (a legacy reproduction plus a check that every delivery channel is
+enabled). The server error set is unchanged from baseline.
+**Related (blocked on decision):** uptime events fire immediately on every SignalR disconnect and
+reconnect, with no grace period. A network blip produces a critical "Device disconnected" alert
+followed by "Device connected". This is the main flapping source for the dedup/suppression backlog
+item (window length needs Bill's call).
+
+## Verified (no change needed) — notification tenant scoping
+
+`Events/Sender.Check_Notification` resolves the event's device → `tenant_id` and delivers to a
+recipient row only if that tenant id is explicitly in the row's `tenants` JSON (`[{id, identifier}]`,
+ids serialized as strings by the console dialogs). Rows with empty `tenants` are skipped. A deleted
+device resolves to an empty tenant id and matches nothing. Parse errors abort delivery for that
+event on that channel (fail closed). No cross-tenant delivery path was found. Reviewed 2026-09-23.
+
 ## Backlog — findings from reviewing the notification pipeline (not yet changed)
 
 1. **No retry on transient send failure.** A failed SMTP/Teams/etc. send is dropped once the run

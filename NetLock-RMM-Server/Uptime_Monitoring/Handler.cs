@@ -19,7 +19,7 @@ namespace NetLock_RMM_Server.Uptime_Monitoring
 
             MySqlConnection conn = new MySqlConnection(Configuration.MySQL.Connection_String);
 
-            string notification_json = @"{""mail"":true,""microsoft_teams"":true,""telegram"":true,""ntfy_sh"":true}";
+            string notification_json = NetLock_RMM_Server.Events.Notification_Batch.Uptime_Notification_Json;
 
             try
             {

@@ -26,6 +26,11 @@ namespace NetLock_RMM_Server.Events
             { "webhook_status", "webhook_notifications" },
         };
 
+        // Channels enabled for server-generated uptime events (device connected / disconnected).
+        // Keys match Sender.Notifications. Upstream omitted "webhook", so webhook recipients with
+        // "Uptime Monitoring" enabled never received device offline/online alerts.
+        public const string Uptime_Notification_Json = @"{""mail"":true,""microsoft_teams"":true,""telegram"":true,""ntfy_sh"":true,""webhook"":true}";
+
         public const string Watermark_Parameter = "@watermark";
 
         public const string Watermark_Query = "SELECT COALESCE(MAX(`id`), 0) FROM `events`;";
