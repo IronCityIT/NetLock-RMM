@@ -48,6 +48,52 @@ processed after the run even if a channel send failed).
 - Server build: error set unchanged (only the 4 pre-existing upstream errors); no new errors.
 - Not validated: an end-to-end run of the real server (it cannot be built from public source).
 
+## Fix 2 — Sensors deleted / never firing because of scheduler timestamp handling (priority 2)
+
+The agent project does not compile from public source either (`Global.Encryption.String_Encryption`
+is stripped; 39 pre-existing errors). Helper logic lives in the dependency-free
+`NetLock RMM Agent Comm/Global/Sensors/Schedule_Time.cs`, which is compile-linked into
+`tests/IronClad.Agent.Tests` (net8.0, ICU cultures enabled).
+
+**Failure A: sensors deleted on non-US agents.** After a sensor's first execution, `last_run` is
+written with `InvariantCulture` (`MM/dd/yyyy HH:mm:ss`). Schedule types 0/1/2/5/6/7 re-read it with
+`DateTime.Parse(value)`, which uses the machine culture. On de-DE and similar locales that throws for
+days > 12. The per-sensor `catch` then **deletes the sensor file**, so monitoring silently stops
+until the next policy sync. For days ≤ 12, day and month are silently swapped, which causes wrong
+scheduling.
+*Root cause:* mixed culture-sensitive and invariant writes and parses of the same field.
+*Fix:* all reads and writes go through `Schedule_Time` (one invariant format). A stored value is
+normalized once per check: legacy values written with the machine culture are still accepted, and
+unreadable values become "never run" instead of throwing.
+
+**Failure B: "date & time" (type 1) sensors fail on every check.** The agent parses
+`time_scheduler_date` with the exact format `dd.MM.yyyy`, but the web console stores `yyyy-MM-dd`
+(`Add_Sensor_Dialog.razor`, `Edit_Sensor_Dialog.razor`). The result is a FormatException and the
+sensor file is deleted.
+*Fix:* `Schedule_Time.Parse_Schedule_Date` accepts `yyyy-MM-dd` and legacy `dd.MM.yyyy`. Types 5–7
+use it too.
+
+**Failure C: event-log sensors (category 1) could not match real events.** The EventLog XPath window
+was `[startTime, endTime]`, and both values were captured at the start of execution, so the window
+was microseconds wide. The in-loop check also compared events against `last_run`, which had already
+been overwritten with the current start time.
+*Fix:* the window is `[previous run, this run)` (`Schedule_Time.Since_Previous_Run`), truncated to the
+stored precision so consecutive runs tile without gap or overlap. Without a usable previous run the
+window is empty, so the full log history is never replayed.
+
+**Validation.**
+- `dotnet test tests/IronClad.Agent.Tests` → 33/33 passed across de-DE, en-GB, en-US, fr-FR, ja-JP.
+- Legacy-reproduction tests (`Legacy_Behavior_Reproduction`) confirm the upstream throw, the
+  day/month swap, and the date-format mismatch.
+- Agent build: error set unchanged versus baseline. With a temporary `String_Encryption` stub the
+  whole agent compiles with **0 errors**; the stub was removed and not committed.
+- Not validated: a live Windows EventLog query (no Windows host here). The XPath uses `>=` / `<`
+  on `@SystemTime` with ISO-8601 UTC timestamps, the same form upstream used.
+
+**Same defect class, not yet fixed:** `Global/Jobs/Time_Scheduler.cs` and
+`Windows/Microsoft_Defender_Antivirus/Scan_Jobs_Scheduler.cs` (automation, priority 3). This is the
+next change.
+
 ## Backlog — findings from reviewing the notification pipeline (not yet changed)
 
 1. **No retry on transient send failure.** A failed SMTP/Teams/etc. send is dropped once the run
