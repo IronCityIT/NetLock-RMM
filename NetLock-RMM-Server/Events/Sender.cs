@@ -18,7 +18,7 @@ namespace NetLock_RMM_Server.Events
             public bool webhook { get; set; }
         }
 
-        public static async Task Smtp(string type, string table)
+        public static async Task Smtp(string type, string table, long watermark)
         {
             MySqlConnection conn = new MySqlConnection(Configuration.MySQL.Connection_String);
 
@@ -27,8 +27,10 @@ namespace NetLock_RMM_Server.Events
                 Console.WriteLine("Processing " + type + " notifications...");
                 await conn.OpenAsync();
 
-                string query = $"SELECT * FROM `events` WHERE `{type}` = 0 AND `read` = 0;"; // only controlled events, no sql injection possible
+                // Bounded by the run's watermark so events inserted mid-run are left for the next run
+                string query = Notification_Batch.Pending_Events_Query(type);
                 MySqlCommand cmd = new MySqlCommand(query, conn);
+                cmd.Parameters.AddWithValue(Notification_Batch.Watermark_Parameter, watermark);
 
                 Logging.Handler.Debug("Events.Sender.Smtp", "MySQL_Prepared_Query", query);
 
@@ -217,12 +219,30 @@ namespace NetLock_RMM_Server.Events
             }
         }
 
-        public static async Task Mark_Old_Read(string started_time, string finished_time)
+        public static async Task<long> Get_Watermark()
+        {
+            using MySqlConnection conn = new MySqlConnection(Configuration.MySQL.Connection_String);
+            await conn.OpenAsync();
+
+            MySqlCommand cmd = new MySqlCommand(Notification_Batch.Watermark_Query, conn);
+            return Convert.ToInt64(await cmd.ExecuteScalarAsync());
+        }
+
+        // Marks every event up to the run's watermark as processed. Events inserted after the
+        // watermark was taken are not touched (upstream used `date < finished_time`, which
+        // silently dropped notifications for events created while the run was in progress).
+        public static async Task Mark_Old_Read(long watermark)
         {
             try
             {
-                Logging.Handler.Debug("Events.Sender.Mark_Old_Read", "started_time & finished_time", started_time + " " + finished_time);
-                await MySQL.Handler.Execute_Command("UPDATE events SET mail_status = '1', ms_teams_status = '1', telegram_status = '1', ntfy_sh_status = '1', webhook_status = '1' WHERE date < '" + finished_time + "';");
+                Logging.Handler.Debug("Events.Sender.Mark_Old_Read", "watermark", watermark.ToString());
+
+                using MySqlConnection conn = new MySqlConnection(Configuration.MySQL.Connection_String);
+                await conn.OpenAsync();
+
+                MySqlCommand cmd = new MySqlCommand(Notification_Batch.Mark_Processed_Command, conn);
+                cmd.Parameters.AddWithValue(Notification_Batch.Watermark_Parameter, watermark);
+                await cmd.ExecuteNonQueryAsync();
             }
             catch (Exception ex)
             {
