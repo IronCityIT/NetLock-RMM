@@ -1,0 +1,65 @@
+# Iron Clad Support: regression tests for fork-specific changes.
+# The product projects do not compile from the public upstream source (closed-source parts are
+# stripped), so these test projects compile the fork's dependency-free files directly.
+name: ironclad-tests
+
+on:
+  pull_request:
+  push:
+    branches: [productize/iron-clad-support]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ironclad-tests-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  test:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+
+    services:
+      mariadb:
+        image: mariadb:10.11
+        env:
+          # Throwaway credential for the ephemeral CI database container only
+          MARIADB_ROOT_PASSWORD: ci-only-root
+        ports:
+          - 3306:3306
+        options: >-
+          --health-cmd="healthcheck.sh --connect --innodb_initialized"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=24
+
+    env:
+      DOTNET_NOLOGO: "true"
+      DOTNET_CLI_TELEMETRY_OPTOUT: "true"
+      ICS_TEST_MYSQL: "Server=127.0.0.1;Port=3306;User ID=root;Password=ci-only-root;"
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: |
+            8.0.x
+            10.0.x
+
+      - name: Server tests (notifications, uptime)
+        run: dotnet test tests/IronClad.Server.Tests --logger "console;verbosity=normal"
+
+      - name: Agent and tray tests (scheduling, branding)
+        run: dotnet test tests/IronClad.Agent.Tests --logger "console;verbosity=normal"
+
+      - name: Web console tests (branding, source offer)
+        run: dotnet test tests/IronClad.WebConsole.Tests --logger "console;verbosity=normal"
+
+      - name: Format check
+        run: |
+          dotnet format whitespace --verify-no-changes tests/IronClad.Server.Tests/IronClad.Server.Tests.csproj
+          dotnet format whitespace --verify-no-changes tests/IronClad.Agent.Tests/IronClad.Agent.Tests.csproj
+          dotnet format whitespace --verify-no-changes tests/IronClad.WebConsole.Tests/IronClad.WebConsole.Tests.csproj
