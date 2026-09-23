@@ -1,4 +1,5 @@
-﻿using Global.Helper;
+﻿using Global.Sensors;
+using Global.Helper;
 using System;
 using System.Collections.Generic;
 using System.Globalization;
@@ -225,6 +226,9 @@ namespace Global.Jobs
                         
                         Logging.Jobs("Jobs.Time_Scheduler.Check_Execution", "Check job execution", "Job: " + job_item.name + " time_scheduler_type: " + job_item.time_scheduler_type);
 
+                        // Iron Clad Support: read last_run in one culture-independent format (see Global.Sensors.Schedule_Time)
+                        job_item.last_run = Schedule_Time.Normalize_Last_Run(job_item.last_run) ?? job_item.last_run;
+
                         // Check enabled
                         /*if (!job_item.enabled)
                         {
@@ -237,7 +241,7 @@ namespace Global.Jobs
 
                         if (job_item.time_scheduler_type == 0) // system boot
                         {
-                            Logging.Jobs("Jobs.Time_Scheduler.Check_Execution", "System boot", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + DateTime.Parse(job_item.last_run ?? DateTime.Now.ToString()) + " Last boot: " + os_up_time.ToString());
+                            Logging.Jobs("Jobs.Time_Scheduler.Check_Execution", "System boot", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + job_item.last_run + " Last boot: " + os_up_time.ToString());
 
                             // Check if last run is empty
                             if (String.IsNullOrEmpty(job_item.last_run))
@@ -250,10 +254,10 @@ namespace Global.Jobs
                                 }
                                 
                                 // Set last_run to the current boot time to prevent re-execution until next reboot
-                                job_item.last_run = os_up_time.ToString();
+                                job_item.last_run = Schedule_Time.Format(os_up_time);
                                 WriteEncryptedJob(job, job_item);
                             }
-                            else if (DateTime.Parse(job_item.last_run) < os_up_time)
+                            else if (Schedule_Time.Parse_Last_Run(job_item.last_run) < os_up_time)
                             {
                                 // Job was last run before the current boot, so execute it
                                 execute = true;
@@ -261,39 +265,39 @@ namespace Global.Jobs
                         }
                         else if (job_item.time_scheduler_type == 1) // date & time
                         {
-                            Logging.Jobs("Jobs.Time_Scheduler.Check_Execution", "date & time", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + DateTime.Parse(job_item.last_run ?? DateTime.Now.ToString()));
+                            Logging.Jobs("Jobs.Time_Scheduler.Check_Execution", "date & time", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + job_item.last_run);
 
-                            DateTime scheduledDateTime = DateTime.ParseExact($"{job_item.time_scheduler_date.Split(' ')[0]} {job_item.time_scheduler_time}", "dd.MM.yyyy HH:mm:ss", CultureInfo.InvariantCulture);
+                            DateTime scheduledDateTime = Schedule_Time.Parse_Schedule_Date_Time(job_item.time_scheduler_date, job_item.time_scheduler_time);
 
                             // Check if last run is empty, if so, subsract 24 hours from scheduled time to trigger the execution
                             if (String.IsNullOrEmpty(job_item.last_run))
                             {
-                                job_item.last_run = (scheduledDateTime - TimeSpan.FromHours(24)).ToString();
+                                job_item.last_run = Schedule_Time.Format(scheduledDateTime - TimeSpan.FromHours(24));
                                 WriteEncryptedJob(job, job_item);
                             }
 
-                            DateTime lastRunDateTime = DateTime.Parse(job_item.last_run);
+                            DateTime lastRunDateTime = Schedule_Time.Parse_Last_Run(job_item.last_run);
 
-                            Logging.Jobs("Jobs.Time_Scheduler.Check_Execution", "date & time", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + DateTime.Parse(job_item.last_run) + " scheduledDateTime: " + scheduledDateTime.ToString() + " execute: " + execute.ToString());
+                            Logging.Jobs("Jobs.Time_Scheduler.Check_Execution", "date & time", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + Schedule_Time.Parse_Last_Run(job_item.last_run) + " scheduledDateTime: " + scheduledDateTime.ToString() + " execute: " + execute.ToString());
 
                             if (DateTime.Now.Date >= scheduledDateTime.Date && DateTime.Now.TimeOfDay >= scheduledDateTime.TimeOfDay && lastRunDateTime < scheduledDateTime)
                                 execute = true;
                         }
                         else if (job_item.time_scheduler_type == 2) // all x seconds
                         {
-                            Logging.Jobs("Jobs.Time_Scheduler.Check_Execution", "all x seconds", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + DateTime.Parse(job_item.last_run ?? DateTime.Now.ToString()));
+                            Logging.Jobs("Jobs.Time_Scheduler.Check_Execution", "all x seconds", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + job_item.last_run);
 
                             // Check if last run is empty, if so set it to now
                             if (String.IsNullOrEmpty(job_item.last_run))
                             {
-                                job_item.last_run = DateTime.Now.ToString();
+                                job_item.last_run = Schedule_Time.Now();
                                 WriteEncryptedJob(job, job_item);
                             }
 
-                            if (DateTime.Parse(job_item.last_run) <= DateTime.Now - TimeSpan.FromSeconds(job_item.time_scheduler_seconds))
+                            if (Schedule_Time.Parse_Last_Run(job_item.last_run) <= DateTime.Now - TimeSpan.FromSeconds(job_item.time_scheduler_seconds))
                                 execute = true;
 
-                            Logging.Jobs("Jobs.Time_Scheduler.Check_Execution", "all x seconds", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + DateTime.Parse(job_item.last_run) + " execute: " + execute.ToString());
+                            Logging.Jobs("Jobs.Time_Scheduler.Check_Execution", "all x seconds", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + Schedule_Time.Parse_Last_Run(job_item.last_run) + " execute: " + execute.ToString());
                         }
                         else if (job_item.time_scheduler_type == 3) // all x minutes
                         {
@@ -302,11 +306,11 @@ namespace Global.Jobs
                             // Check if last run is empty, if so set it to now
                             if (String.IsNullOrEmpty(job_item.last_run))
                             {
-                                job_item.last_run = DateTime.Now.ToString(CultureInfo.InvariantCulture);
+                                job_item.last_run = Schedule_Time.Now();
                                 WriteEncryptedJob(job, job_item);
                             }
 
-                            DateTime lastRun = DateTime.Parse(job_item.last_run, CultureInfo.InvariantCulture);
+                            DateTime lastRun = Schedule_Time.Parse_Last_Run(job_item.last_run);
                             if (lastRun <= DateTime.Now - TimeSpan.FromMinutes(job_item.time_scheduler_minutes))
                                 execute = true;
 
@@ -319,11 +323,11 @@ namespace Global.Jobs
                             // Check if last run is empty, if so set it to now
                             if (String.IsNullOrEmpty(job_item.last_run))
                             {
-                                job_item.last_run = DateTime.Now.ToString(CultureInfo.InvariantCulture);
+                                job_item.last_run = Schedule_Time.Now();
                                 WriteEncryptedJob(job, job_item);
                             }
 
-                            DateTime lastRun = DateTime.Parse(job_item.last_run, CultureInfo.InvariantCulture);
+                            DateTime lastRun = Schedule_Time.Parse_Last_Run(job_item.last_run);
                             if (lastRun <= DateTime.Now - TimeSpan.FromHours(job_item.time_scheduler_hours))
                                 execute = true;
 
@@ -331,51 +335,51 @@ namespace Global.Jobs
                         }
                         else if (job_item.time_scheduler_type == 5) // date, all x seconds
                         {
-                            Logging.Jobs("Jobs.Time_Scheduler.Check_Execution", "date, all x seconds", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + DateTime.Parse(job_item.last_run ?? DateTime.Now.ToString()));
+                            Logging.Jobs("Jobs.Time_Scheduler.Check_Execution", "date, all x seconds", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + job_item.last_run);
 
                             // Check if last run is empty, if so set it to now
                             if (String.IsNullOrEmpty(job_item.last_run))
                             {
-                                job_item.last_run = DateTime.Now.ToString();
+                                job_item.last_run = Schedule_Time.Now();
                                 WriteEncryptedJob(job, job_item);
                             }
 
-                            if (DateTime.Now.Date == DateTime.Parse(job_item.time_scheduler_date).Date && DateTime.Parse(job_item.last_run) <= DateTime.Now - TimeSpan.FromSeconds(job_item.time_scheduler_seconds))
+                            if (DateTime.Now.Date == Schedule_Time.Parse_Schedule_Date(job_item.time_scheduler_date) && Schedule_Time.Parse_Last_Run(job_item.last_run) <= DateTime.Now - TimeSpan.FromSeconds(job_item.time_scheduler_seconds))
                                 execute = true;
 
-                            Logging.Jobs("Jobs.Time_Scheduler.Check_Execution", "date, all x seconds", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + DateTime.Parse(job_item.last_run) + " execute: " + execute.ToString());
+                            Logging.Jobs("Jobs.Time_Scheduler.Check_Execution", "date, all x seconds", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + Schedule_Time.Parse_Last_Run(job_item.last_run) + " execute: " + execute.ToString());
                         }
                         else if (job_item.time_scheduler_type == 6) // date, all x minutes
                         {
-                            Logging.Jobs("Jobs.Time_Scheduler.Check_Execution", "date, all x minutes", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + DateTime.Parse(job_item.last_run ?? DateTime.Now.ToString()));
+                            Logging.Jobs("Jobs.Time_Scheduler.Check_Execution", "date, all x minutes", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + job_item.last_run);
 
                             // Check if last run is empty, if so set it to now
                             if (String.IsNullOrEmpty(job_item.last_run))
                             {
-                                job_item.last_run = DateTime.Now.ToString();
+                                job_item.last_run = Schedule_Time.Now();
                                 WriteEncryptedJob(job, job_item);
                             }
 
-                            if (DateTime.Now.Date == DateTime.Parse(job_item.time_scheduler_date).Date && DateTime.Parse(job_item.last_run) < DateTime.Now - TimeSpan.FromMinutes(job_item.time_scheduler_minutes))
+                            if (DateTime.Now.Date == Schedule_Time.Parse_Schedule_Date(job_item.time_scheduler_date) && Schedule_Time.Parse_Last_Run(job_item.last_run) < DateTime.Now - TimeSpan.FromMinutes(job_item.time_scheduler_minutes))
                                 execute = true;
 
-                            Logging.Jobs("Jobs.Time_Scheduler.Check_Execution", "date, all x minutes", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + DateTime.Parse(job_item.last_run) + " execute: " + execute.ToString());
+                            Logging.Jobs("Jobs.Time_Scheduler.Check_Execution", "date, all x minutes", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + Schedule_Time.Parse_Last_Run(job_item.last_run) + " execute: " + execute.ToString());
                         }
                         else if (job_item.time_scheduler_type == 7) // date, all x hours
                         {
-                            Logging.Jobs("Jobs.Time_Scheduler.Check_Execution", "date, all x hours", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + DateTime.Parse(job_item.last_run ?? DateTime.Now.ToString()));
+                            Logging.Jobs("Jobs.Time_Scheduler.Check_Execution", "date, all x hours", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + job_item.last_run);
 
                             // Check if last run is empty, if so set it to now
                             if (String.IsNullOrEmpty(job_item.last_run))
                             {
-                                job_item.last_run = DateTime.Now.ToString();
+                                job_item.last_run = Schedule_Time.Now();
                                 WriteEncryptedJob(job, job_item);
                             }
 
-                            if (DateTime.Now.Date == DateTime.Parse(job_item.time_scheduler_date).Date && DateTime.Parse(job_item.last_run) < DateTime.Now - TimeSpan.FromHours(job_item.time_scheduler_hours))
+                            if (DateTime.Now.Date == Schedule_Time.Parse_Schedule_Date(job_item.time_scheduler_date) && Schedule_Time.Parse_Last_Run(job_item.last_run) < DateTime.Now - TimeSpan.FromHours(job_item.time_scheduler_hours))
                                 execute = true;
 
-                            Logging.Jobs("Jobs.Time_Scheduler.Check_Execution", "date, all x hours", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + DateTime.Parse(job_item.last_run) + " execute: " + execute.ToString());
+                            Logging.Jobs("Jobs.Time_Scheduler.Check_Execution", "date, all x hours", "name: " + job_item.name + " id: " + job_item.id + " last_run: " + Schedule_Time.Parse_Last_Run(job_item.last_run) + " execute: " + execute.ToString());
                         }
                         else if (job_item.time_scheduler_type == 8) // following days at X time
                         {
@@ -386,11 +390,11 @@ namespace Global.Jobs
                             // Check if last run is empty, if so set it to a time in the past to trigger initial execution
                             if (String.IsNullOrEmpty(job_item.last_run))
                             {
-                                job_item.last_run = DateTime.Now.AddDays(-1).ToString(CultureInfo.InvariantCulture);
+                                job_item.last_run = Schedule_Time.Format(DateTime.Now.AddDays(-1));
                                 WriteEncryptedJob(job, job_item);
                             }
 
-                            DateTime lastRunDateTime = DateTime.Parse(job_item.last_run, CultureInfo.InvariantCulture);
+                            DateTime lastRunDateTime = Schedule_Time.Parse_Last_Run(job_item.last_run);
 
                             // Check if current time is past the scheduled time and we haven't run today yet
                             bool shouldRunToday = DateTime.Now.TimeOfDay >= scheduledTime.TimeOfDay && lastRunDateTime.Date < DateTime.Now.Date;
@@ -408,11 +412,11 @@ namespace Global.Jobs
                             // Check if last run is empty, if so set it to now
                             if (String.IsNullOrEmpty(job_item.last_run))
                             {
-                                job_item.last_run = DateTime.Now.ToString(CultureInfo.InvariantCulture);
+                                job_item.last_run = Schedule_Time.Now();
                                 WriteEncryptedJob(job, job_item);
                             }
 
-                            DateTime lastRun = DateTime.Parse(job_item.last_run, CultureInfo.InvariantCulture);
+                            DateTime lastRun = Schedule_Time.Parse_Last_Run(job_item.last_run);
 
                             // Check if it's a valid day AND the interval has passed
                             if (ShouldRunToday(job_item) && lastRun <= DateTime.Now - TimeSpan.FromSeconds(job_item.time_scheduler_seconds))
@@ -427,11 +431,11 @@ namespace Global.Jobs
                             // Check if last run is empty, if so set it to now
                             if (String.IsNullOrEmpty(job_item.last_run))
                             {
-                                job_item.last_run = DateTime.Now.ToString(CultureInfo.InvariantCulture);
+                                job_item.last_run = Schedule_Time.Now();
                                 WriteEncryptedJob(job, job_item);
                             }
 
-                            DateTime lastRun = DateTime.Parse(job_item.last_run, CultureInfo.InvariantCulture);
+                            DateTime lastRun = Schedule_Time.Parse_Last_Run(job_item.last_run);
 
                             // Check if it's a valid day AND the interval has passed
                             if (ShouldRunToday(job_item) && lastRun <= DateTime.Now - TimeSpan.FromMinutes(job_item.time_scheduler_minutes))
@@ -446,11 +450,11 @@ namespace Global.Jobs
                             // Check if last run is empty, if so set it to now
                             if (String.IsNullOrEmpty(job_item.last_run))
                             {
-                                job_item.last_run = DateTime.Now.ToString(CultureInfo.InvariantCulture);
+                                job_item.last_run = Schedule_Time.Now();
                                 WriteEncryptedJob(job, job_item);
                             }
 
-                            DateTime lastRun = DateTime.Parse(job_item.last_run, CultureInfo.InvariantCulture);
+                            DateTime lastRun = Schedule_Time.Parse_Last_Run(job_item.last_run);
 
                             // Check if it's a valid day AND the interval has passed
                             if (ShouldRunToday(job_item) && lastRun <= DateTime.Now - TimeSpan.FromHours(job_item.time_scheduler_hours))
@@ -466,7 +470,7 @@ namespace Global.Jobs
                             string previous_last_run = job_item.last_run;
                             
                             // Update last run IMMEDIATELY to prevent race conditions (before executing the job)
-                            job_item.last_run = DateTime.Now.ToString(CultureInfo.InvariantCulture);
+                            job_item.last_run = Schedule_Time.Now();
                             WriteEncryptedJob(job, job_item);
 
                             string result = String.Empty;

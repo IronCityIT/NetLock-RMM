@@ -107,6 +107,8 @@ public class Schedule_Time_Tests
     [InlineData("2026-09-23 00:00:00")]
     [InlineData("23.09.2026")]
     [InlineData("23.09.2026 00:00:00")]
+    [InlineData("9/23/2026 12:00:00 AM")] // scan-job dialog, en-US console
+    [InlineData("09/23/2026 00:00:00")]
     public void Schedule_date_accepts_web_console_and_legacy_formats(string stored)
     {
         foreach (var culture in new[] { "de-DE", "en-US" })
@@ -122,10 +124,27 @@ public class Schedule_Time_Tests
         Assert.Equal(new DateTime(2026, 9, 23, 17, 30, 0), Schedule_Time.Parse_Schedule_Date_Time("2026-09-23", "17:30:00"));
     }
 
+    [Fact]
+    public void Slash_schedule_dates_are_month_first()
+    {
+        Assert.Equal(new DateTime(2026, 3, 9), Schedule_Time.Parse_Schedule_Date("3/9/2026 2:30:00 PM"));
+    }
+
+    [Fact]
+    public void Scan_job_date_time_from_en_us_console_is_accepted()
+    {
+        // Upstream: ParseExact("9/23/2026 14:30:00", "dd.MM.yyyy HH:mm:ss") threw for every en-US scan job
+        Assert.Throws<FormatException>(() =>
+            DateTime.ParseExact("9/23/2026 14:30:00", "dd.MM.yyyy HH:mm:ss", CultureInfo.InvariantCulture));
+
+        Assert.Equal(new DateTime(2026, 9, 23, 14, 30, 0), Schedule_Time.Parse_Schedule_Date_Time("9/23/2026 2:30:00 PM", "14:30:00"));
+    }
+
     [Theory]
     [InlineData("")]
-    [InlineData("09/23/2026")]
-    public void Schedule_date_rejects_ambiguous_or_empty_values(string stored)
+    [InlineData("2026/09/23")]
+    [InlineData("23/09/2026")]
+    public void Schedule_date_rejects_unsupported_or_empty_values(string stored)
     {
         Assert.Throws<FormatException>(() => Schedule_Time.Parse_Schedule_Date(stored));
     }

@@ -90,9 +90,22 @@ window is empty, so the full log history is never replayed.
 - Not validated: a live Windows EventLog query (no Windows host here). The XPath uses `>=` / `<`
   on `@SystemTime` with ISO-8601 UTC timestamps, the same form upstream used.
 
-**Same defect class, not yet fixed:** `Global/Jobs/Time_Scheduler.cs` and
-`Windows/Microsoft_Defender_Antivirus/Scan_Jobs_Scheduler.cs` (automation, priority 3). This is the
-next change.
+## Fix 3 — Job and Defender scan-job schedulers: same timestamp defects (priority 3)
+
+**Failure.** `Global/Jobs/Time_Scheduler.cs` had the same bug as sensors: `last_run` written in
+InvariantCulture, then read with the machine culture, and type 1 dates parsed as `dd.MM.yyyy`. A
+failing job is deleted by the per-job catch. `Scan_Jobs_Scheduler.cs` wrote and read `last_run` in
+the machine culture consistently, but its "date & time", "following days at X time" and "following
+days, x hours" types parsed `time_scheduler_date` as `dd.MM.yyyy`. The scan-job dialogs store
+`DateTime.ToString()` in the console's request culture, so on an en-US console
+(`9/23/2026 2:30:00 PM`) every such scan job threw. The scan-job loop has no per-job `try`, so one
+bad job also aborted every job after it on each cycle.
+*Fix:* both schedulers use `Schedule_Time` for every `last_run` read/write and schedule-date parse.
+`Parse_Schedule_Date` also accepts `M/d/yyyy`. The console only produces yyyy-MM-dd, de-DE
+dd.MM.yyyy or en-US M/d/yyyy, so slash dates are unambiguous.
+**Validation:** 38/38 agent tests, including a reproduction of the en-US scan-job failure. The full
+agent compiles with 0 errors when the temporary `String_Encryption` stub is present (stub not
+committed).
 
 ## Backlog — findings from reviewing the notification pipeline (not yet changed)
 
@@ -110,5 +123,8 @@ next change.
    succeeded; other failed recipients are not retried.
 6. Remaining string-concatenated SQL in `Sender.cs` (`WHERE id = " + id`) — values come from the
    DB (int PK), low risk, but should be parameterised when touched.
-7. Upstream security advisory: `Microsoft.OpenApi` 2.4.1 (GHSA-v5pm-xwqc-g5wc, high) pulled in
+7. Scan-job loop (`Scan_Jobs_Scheduler.Check_Execution`) has no per-job try/catch: one malformed job
+   aborts the remaining jobs every cycle. Needs a re-indent of ~300 upstream lines; deferred to
+   keep upstream merges clean.
+8. Upstream security advisory: `Microsoft.OpenApi` 2.4.1 (GHSA-v5pm-xwqc-g5wc, high) pulled in
    transitively by the server.
