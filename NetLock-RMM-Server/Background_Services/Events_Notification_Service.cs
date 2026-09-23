@@ -38,17 +38,17 @@ public class Events_Notification_Service : BackgroundService
 
         try
         {
-            await NetLock_RMM_Server.Events.Sender.Smtp("mail_status", "mail_notifications");
-            await NetLock_RMM_Server.Events.Sender.Smtp("ms_teams_status", "microsoft_teams_notifications");
-            await NetLock_RMM_Server.Events.Sender.Smtp("telegram_status", "telegram_notifications");
-            await NetLock_RMM_Server.Events.Sender.Smtp("ntfy_sh_status", "ntfy_sh_notifications");
-            await NetLock_RMM_Server.Events.Sender.Smtp("webhook_status", "webhook_notifications");
+            // Snapshot the newest event id; this run only handles (and later marks) events up to it
+            long watermark = await NetLock_RMM_Server.Events.Sender.Get_Watermark();
+
+            foreach (var channel in NetLock_RMM_Server.Events.Notification_Batch.Channels)
+                await NetLock_RMM_Server.Events.Sender.Smtp(channel.Key, channel.Value, watermark);
 
             string finishedTime = DateTime.Now.ToString("yyyy-MM-dd HH:mm:ss");
             Logging.Handler.Debug("Events_Notification_Service.ProcessEventsTask", "Periodic task finished at: ", finishedTime);
 
             // Markiere alte Events als gelesen
-            await NetLock_RMM_Server.Events.Sender.Mark_Old_Read(startedTime, finishedTime);
+            await NetLock_RMM_Server.Events.Sender.Mark_Old_Read(watermark);
         }
         catch (Exception ex)
         {
