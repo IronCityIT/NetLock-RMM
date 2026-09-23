@@ -2,7 +2,8 @@
 {
     public class Web_Console
     {
-        public static string title = "NetLock RMM";
+        public static string title = Branding.Default_Product_Name;
+        public static string sourceCodeUrl = Branding.Default_Source_Code_Url; // AGPL-3.0 section 13 source offer
         public static string logoBase64 = String.Empty;
         public static string language = "en-US";
         public static bool loggingEnabled = false;

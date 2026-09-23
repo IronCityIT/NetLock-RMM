@@ -88,6 +88,10 @@ if (!String.IsNullOrEmpty(publicOverrideUrl))
     Console.WriteLine("Public Override URL set to: " + Web_Console.publicOverrideUrl);
 }
     
+// Iron Clad Support: product name and source-code offer (see Configuration/Branding.cs)
+Web_Console.title = NetLock_RMM_Web_Console.Configuration.Branding.Product_Name(builder.Configuration.GetValue<string>("Webinterface:Title", null));
+Web_Console.sourceCodeUrl = NetLock_RMM_Web_Console.Configuration.Branding.Source_Code_Url(builder.Configuration.GetValue<string>("Webinterface:SourceCodeUrl", null));
+
 var language = builder.Configuration.GetValue<string>("Webinterface:Language", "en-US");
 
 // Check members portal parts
@@ -159,6 +163,7 @@ Console.WriteLine(Environment.NewLine);
 Console.WriteLine("[Webinterface]");
 Console.WriteLine($"Language: {language}");
 Console.WriteLine($"Title: {Web_Console.title}");
+Console.WriteLine($"Source Code: {Web_Console.sourceCodeUrl}");
 Console.WriteLine($"Public Override Domain: {Web_Console.publicOverrideUrl}");
 Console.WriteLine(Environment.NewLine);
 
