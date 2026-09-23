@@ -531,6 +531,15 @@ namespace Global.Sensors
 
                         Logging.Sensors("Sensors.Time_Scheduler.Check_Execution", "Check sensor execution", "Sensor: " + sensor_item.name + " time_scheduler_type: " + sensor_item.time_scheduler_type);
 
+                        // Iron Clad Support: store last_run in one culture-independent format (see Schedule_Time)
+                        string? normalized_last_run = Schedule_Time.Normalize_Last_Run(sensor_item.last_run);
+
+                        if (normalized_last_run != null && normalized_last_run != sensor_item.last_run)
+                        {
+                            sensor_item.last_run = normalized_last_run;
+                            WriteEncryptedSensor(sensor, sensor_item);
+                        }
+
                         // Check thresholds
                         // Check notification treshold
                         if (string.IsNullOrEmpty(sensor_item.notification_treshold_count.ToString()))
@@ -558,7 +567,7 @@ namespace Global.Sensors
 
                         if (sensor_item.time_scheduler_type == 0) // system boot
                         {
-                            Logging.Sensors("Sensors.Time_Scheduler.Check_Execution", "System boot", "name: " + sensor_item.name + " id: " + sensor_item.id + " last_run: " + DateTime.Parse(sensor_item.last_run ?? DateTime.Now.ToString()) + " Last boot: " + os_up_time.ToString());
+                            Logging.Sensors("Sensors.Time_Scheduler.Check_Execution", "System boot", "name: " + sensor_item.name + " id: " + sensor_item.id + " last_run: " + sensor_item.last_run + " Last boot: " + os_up_time.ToString());
 
                             // Check if last run is empty
                             if (String.IsNullOrEmpty(sensor_item.last_run))
@@ -571,10 +580,10 @@ namespace Global.Sensors
                                 }
                                 
                                 // Set last_run to the current boot time to prevent re-execution until next reboot
-                                sensor_item.last_run = os_up_time.ToString();
+                                sensor_item.last_run = Schedule_Time.Format(os_up_time);
                                 WriteEncryptedSensor(sensor, sensor_item);
                             }
-                            else if (DateTime.Parse(sensor_item.last_run) < os_up_time)
+                            else if (Schedule_Time.Parse_Last_Run(sensor_item.last_run) < os_up_time)
                             {
                                 // Sensor was last run before the current boot, so execute it
                                 execute = true;
@@ -582,39 +591,39 @@ namespace Global.Sensors
                         }
                         else if (sensor_item.time_scheduler_type == 1) // date & time
                         {
-                            Logging.Sensors("Sensors.Time_Scheduler.Check_Execution", "date & time", "name: " + sensor_item.name + " id: " + sensor_item.id + " last_run: " + DateTime.Parse(sensor_item.last_run ?? DateTime.Now.ToString()));
+                            Logging.Sensors("Sensors.Time_Scheduler.Check_Execution", "date & time", "name: " + sensor_item.name + " id: " + sensor_item.id + " last_run: " + sensor_item.last_run);
 
-                            DateTime scheduledDateTime = DateTime.ParseExact($"{sensor_item.time_scheduler_date.Split(' ')[0]} {sensor_item.time_scheduler_time}", "dd.MM.yyyy HH:mm:ss", CultureInfo.InvariantCulture);
+                            DateTime scheduledDateTime = Schedule_Time.Parse_Schedule_Date_Time(sensor_item.time_scheduler_date, sensor_item.time_scheduler_time);
 
                             // Check if last run is empty, if so, subsract 24 hours from scheduled time to trigger the execution
                             if (String.IsNullOrEmpty(sensor_item.last_run))
                             {
-                                sensor_item.last_run = (scheduledDateTime - TimeSpan.FromHours(24)).ToString();
+                                sensor_item.last_run = Schedule_Time.Format(scheduledDateTime - TimeSpan.FromHours(24));
                                 WriteEncryptedSensor(sensor, sensor_item);
                             }
 
-                            DateTime lastRunDateTime = DateTime.Parse(sensor_item.last_run);
+                            DateTime lastRunDateTime = Schedule_Time.Parse_Last_Run(sensor_item.last_run);
 
-                            Logging.Sensors("Sensors.Time_Scheduler.Check_Execution", "date & time", "name: " + sensor_item.name + " id: " + sensor_item.id + " last_run: " + DateTime.Parse(sensor_item.last_run) + " scheduledDateTime: " + scheduledDateTime.ToString() + " execute: " + execute.ToString());
+                            Logging.Sensors("Sensors.Time_Scheduler.Check_Execution", "date & time", "name: " + sensor_item.name + " id: " + sensor_item.id + " last_run: " + Schedule_Time.Parse_Last_Run(sensor_item.last_run) + " scheduledDateTime: " + scheduledDateTime.ToString() + " execute: " + execute.ToString());
 
                             if (DateTime.Now.Date >= scheduledDateTime.Date && DateTime.Now.TimeOfDay >= scheduledDateTime.TimeOfDay && lastRunDateTime < scheduledDateTime)
                                 execute = true;
                         }
                         else if (sensor_item.time_scheduler_type == 2) // all x seconds
                         {
-                            Logging.Sensors("Sensors.Time_Scheduler.Check_Execution", "all x seconds", "name: " + sensor_item.name + " id: " + sensor_item.id + " last_run: " + DateTime.Parse(sensor_item.last_run ?? DateTime.Now.ToString()));
+                            Logging.Sensors("Sensors.Time_Scheduler.Check_Execution", "all x seconds", "name: " + sensor_item.name + " id: " + sensor_item.id + " last_run: " + sensor_item.last_run);
 
                             // Check if last run is empty, if so set it to now
                             if (String.IsNullOrEmpty(sensor_item.last_run))
                             {
-                                sensor_item.last_run = DateTime.Now.ToString();
+                                sensor_item.last_run = Schedule_Time.Now();
                                 WriteEncryptedSensor(sensor, sensor_item);
                             }
 
-                            if (DateTime.Parse(sensor_item.last_run) <= DateTime.Now - TimeSpan.FromSeconds(sensor_item.time_scheduler_seconds))
+                            if (Schedule_Time.Parse_Last_Run(sensor_item.last_run) <= DateTime.Now - TimeSpan.FromSeconds(sensor_item.time_scheduler_seconds))
                                 execute = true;
 
-                            Logging.Sensors("Sensors.Time_Scheduler.Check_Execution", "all x seconds", "name: " + sensor_item.name + " id: " + sensor_item.id + " last_run: " + DateTime.Parse(sensor_item.last_run) + " execute: " + execute.ToString());
+                            Logging.Sensors("Sensors.Time_Scheduler.Check_Execution", "all x seconds", "name: " + sensor_item.name + " id: " + sensor_item.id + " last_run: " + Schedule_Time.Parse_Last_Run(sensor_item.last_run) + " execute: " + execute.ToString());
                         }
                         else if (sensor_item.time_scheduler_type == 3) // all x minutes
                         {
@@ -623,11 +632,11 @@ namespace Global.Sensors
                             // Check if last run is empty, if so set it to now
                             if (String.IsNullOrEmpty(sensor_item.last_run))
                             {
-                                sensor_item.last_run = DateTime.Now.ToString(CultureInfo.InvariantCulture);
+                                sensor_item.last_run = Schedule_Time.Now();
                                 WriteEncryptedSensor(sensor, sensor_item);
                             }
 
-                            DateTime lastRun = DateTime.Parse(sensor_item.last_run, CultureInfo.InvariantCulture);
+                            DateTime lastRun = Schedule_Time.Parse_Last_Run(sensor_item.last_run);
                             if (lastRun <= DateTime.Now - TimeSpan.FromMinutes(sensor_item.time_scheduler_minutes))
                                 execute = true;
 
@@ -640,11 +649,11 @@ namespace Global.Sensors
                             // Check if last run is empty, if so set it to now
                             if (String.IsNullOrEmpty(sensor_item.last_run))
                             {
-                                sensor_item.last_run = DateTime.Now.ToString(CultureInfo.InvariantCulture);
+                                sensor_item.last_run = Schedule_Time.Now();
                                 WriteEncryptedSensor(sensor, sensor_item);
                             }
 
-                            DateTime lastRun = DateTime.Parse(sensor_item.last_run, CultureInfo.InvariantCulture);
+                            DateTime lastRun = Schedule_Time.Parse_Last_Run(sensor_item.last_run);
                             if (lastRun <= DateTime.Now - TimeSpan.FromHours(sensor_item.time_scheduler_hours))
                                 execute = true;
 
@@ -652,51 +661,51 @@ namespace Global.Sensors
                         }
                         else if (sensor_item.time_scheduler_type == 5) // date, all x seconds
                         {
-                            Logging.Sensors("Sensors.Time_Scheduler.Check_Execution", "date, all x seconds", "name: " + sensor_item.name + " id: " + sensor_item.id + " last_run: " + DateTime.Parse(sensor_item.last_run ?? DateTime.Now.ToString()));
+                            Logging.Sensors("Sensors.Time_Scheduler.Check_Execution", "date, all x seconds", "name: " + sensor_item.name + " id: " + sensor_item.id + " last_run: " + sensor_item.last_run);
 
                             // Check if last run is empty, if so set it to now
                             if (String.IsNullOrEmpty(sensor_item.last_run))
                             {
-                                sensor_item.last_run = DateTime.Now.ToString();
+                                sensor_item.last_run = Schedule_Time.Now();
                                 WriteEncryptedSensor(sensor, sensor_item);
                             }
 
-                            if (DateTime.Now.Date == DateTime.Parse(sensor_item.time_scheduler_date).Date && DateTime.Parse(sensor_item.last_run) <= DateTime.Now - TimeSpan.FromSeconds(sensor_item.time_scheduler_seconds))
+                            if (DateTime.Now.Date == Schedule_Time.Parse_Schedule_Date(sensor_item.time_scheduler_date) && Schedule_Time.Parse_Last_Run(sensor_item.last_run) <= DateTime.Now - TimeSpan.FromSeconds(sensor_item.time_scheduler_seconds))
                                 execute = true;
 
-                            Logging.Sensors("Sensors.Time_Scheduler.Check_Execution", "date, all x seconds", "name: " + sensor_item.name + " id: " + sensor_item.id + " last_run: " + DateTime.Parse(sensor_item.last_run) + " execute: " + execute.ToString());
+                            Logging.Sensors("Sensors.Time_Scheduler.Check_Execution", "date, all x seconds", "name: " + sensor_item.name + " id: " + sensor_item.id + " last_run: " + Schedule_Time.Parse_Last_Run(sensor_item.last_run) + " execute: " + execute.ToString());
                         }
                         else if (sensor_item.time_scheduler_type == 6) // date, all x minutes
                         {
-                            Logging.Sensors("Sensors.Time_Scheduler.Check_Execution", "date, all x minutes", "name: " + sensor_item.name + " id: " + sensor_item.id + " last_run: " + DateTime.Parse(sensor_item.last_run ?? DateTime.Now.ToString()));
+                            Logging.Sensors("Sensors.Time_Scheduler.Check_Execution", "date, all x minutes", "name: " + sensor_item.name + " id: " + sensor_item.id + " last_run: " + sensor_item.last_run);
 
                             // Check if last run is empty, if so set it to now
                             if (String.IsNullOrEmpty(sensor_item.last_run))
                             {
-                                sensor_item.last_run = DateTime.Now.ToString();
+                                sensor_item.last_run = Schedule_Time.Now();
                                 WriteEncryptedSensor(sensor, sensor_item);
                             }
 
-                            if (DateTime.Now.Date == DateTime.Parse(sensor_item.time_scheduler_date).Date && DateTime.Parse(sensor_item.last_run) < DateTime.Now - TimeSpan.FromMinutes(sensor_item.time_scheduler_minutes))
+                            if (DateTime.Now.Date == Schedule_Time.Parse_Schedule_Date(sensor_item.time_scheduler_date) && Schedule_Time.Parse_Last_Run(sensor_item.last_run) < DateTime.Now - TimeSpan.FromMinutes(sensor_item.time_scheduler_minutes))
                                 execute = true;
 
-                            Logging.Sensors("Sensors.Time_Scheduler.Check_Execution", "date, all x minutes", "name: " + sensor_item.name + " id: " + sensor_item.id + " last_run: " + DateTime.Parse(sensor_item.last_run) + " execute: " + execute.ToString());
+                            Logging.Sensors("Sensors.Time_Scheduler.Check_Execution", "date, all x minutes", "name: " + sensor_item.name + " id: " + sensor_item.id + " last_run: " + Schedule_Time.Parse_Last_Run(sensor_item.last_run) + " execute: " + execute.ToString());
                         }
                         else if (sensor_item.time_scheduler_type == 7) // date, all x hours
                         {
-                            Logging.Sensors("Sensors.Time_Scheduler.Check_Execution", "date, all x hours", "name: " + sensor_item.name + " id: " + sensor_item.id + " last_run: " + DateTime.Parse(sensor_item.last_run ?? DateTime.Now.ToString()));
+                            Logging.Sensors("Sensors.Time_Scheduler.Check_Execution", "date, all x hours", "name: " + sensor_item.name + " id: " + sensor_item.id + " last_run: " + sensor_item.last_run);
 
                             // Check if last run is empty, if so set it to now
                             if (String.IsNullOrEmpty(sensor_item.last_run))
                             {
-                                sensor_item.last_run = DateTime.Now.ToString();
+                                sensor_item.last_run = Schedule_Time.Now();
                                 WriteEncryptedSensor(sensor, sensor_item);
                             }
 
-                            if (DateTime.Now.Date == DateTime.Parse(sensor_item.time_scheduler_date).Date && DateTime.Parse(sensor_item.last_run) < DateTime.Now - TimeSpan.FromHours(sensor_item.time_scheduler_hours))
+                            if (DateTime.Now.Date == Schedule_Time.Parse_Schedule_Date(sensor_item.time_scheduler_date) && Schedule_Time.Parse_Last_Run(sensor_item.last_run) < DateTime.Now - TimeSpan.FromHours(sensor_item.time_scheduler_hours))
                                 execute = true;
 
-                            Logging.Sensors("Sensors.Time_Scheduler.Check_Execution", "date, all x hours", "name: " + sensor_item.name + " id: " + sensor_item.id + " last_run: " + DateTime.Parse(sensor_item.last_run) + " execute: " + execute.ToString());
+                            Logging.Sensors("Sensors.Time_Scheduler.Check_Execution", "date, all x hours", "name: " + sensor_item.name + " id: " + sensor_item.id + " last_run: " + Schedule_Time.Parse_Last_Run(sensor_item.last_run) + " execute: " + execute.ToString());
                         }
                         else if (sensor_item.time_scheduler_type == 8) // following days at X time
                         {
@@ -707,11 +716,11 @@ namespace Global.Sensors
                             // Check if last run is empty, if so set it to a time in the past to trigger initial execution
                             if (String.IsNullOrEmpty(sensor_item.last_run))
                             {
-                                sensor_item.last_run = DateTime.Now.AddDays(-1).ToString(CultureInfo.InvariantCulture);
+                                sensor_item.last_run = Schedule_Time.Format(DateTime.Now.AddDays(-1));
                                 WriteEncryptedSensor(sensor, sensor_item);
                             }
 
-                            DateTime lastRunDateTime = DateTime.Parse(sensor_item.last_run, CultureInfo.InvariantCulture);
+                            DateTime lastRunDateTime = Schedule_Time.Parse_Last_Run(sensor_item.last_run);
 
                             // Check if current time is past the scheduled time and we haven't run today yet
                             bool shouldRunToday = DateTime.Now.TimeOfDay >= scheduledTime.TimeOfDay && lastRunDateTime.Date < DateTime.Now.Date;
@@ -729,11 +738,11 @@ namespace Global.Sensors
                             // Check if last run is empty, if so set it to now
                             if (String.IsNullOrEmpty(sensor_item.last_run))
                             {
-                                sensor_item.last_run = DateTime.Now.ToString(CultureInfo.InvariantCulture);
+                                sensor_item.last_run = Schedule_Time.Now();
                                 WriteEncryptedSensor(sensor, sensor_item);
                             }
 
-                            DateTime lastRun = DateTime.Parse(sensor_item.last_run, CultureInfo.InvariantCulture);
+                            DateTime lastRun = Schedule_Time.Parse_Last_Run(sensor_item.last_run);
 
                             // Check if it's a valid day AND the interval has passed
                             if (ShouldRunToday(sensor_item) && lastRun <= DateTime.Now - TimeSpan.FromSeconds(sensor_item.time_scheduler_seconds))
@@ -748,11 +757,11 @@ namespace Global.Sensors
                             // Check if last run is empty, if so set it to now
                             if (String.IsNullOrEmpty(sensor_item.last_run))
                             {
-                                sensor_item.last_run = DateTime.Now.ToString(CultureInfo.InvariantCulture);
+                                sensor_item.last_run = Schedule_Time.Now();
                                 WriteEncryptedSensor(sensor, sensor_item);
                             }
 
-                            DateTime lastRun = DateTime.Parse(sensor_item.last_run, CultureInfo.InvariantCulture);
+                            DateTime lastRun = Schedule_Time.Parse_Last_Run(sensor_item.last_run);
 
                             // Check if it's a valid day AND the interval has passed
                             if (ShouldRunToday(sensor_item) && lastRun <= DateTime.Now - TimeSpan.FromMinutes(sensor_item.time_scheduler_minutes))
@@ -767,11 +776,11 @@ namespace Global.Sensors
                             // Check if last run is empty, if so set it to now
                             if (String.IsNullOrEmpty(sensor_item.last_run))
                             {
-                                sensor_item.last_run = DateTime.Now.ToString(CultureInfo.InvariantCulture);
+                                sensor_item.last_run = Schedule_Time.Now();
                                 WriteEncryptedSensor(sensor, sensor_item);
                             }
 
-                            DateTime lastRun = DateTime.Parse(sensor_item.last_run, CultureInfo.InvariantCulture);
+                            DateTime lastRun = Schedule_Time.Parse_Last_Run(sensor_item.last_run);
 
                             // Check if it's a valid day AND the interval has passed
                             if (ShouldRunToday(sensor_item) && lastRun <= DateTime.Now - TimeSpan.FromHours(sensor_item.time_scheduler_hours))
@@ -788,7 +797,7 @@ namespace Global.Sensors
                             
                             // Update last run IMMEDIATELY to prevent race conditions (before executing the sensor)
                             var startTime = DateTime.Now;
-                            sensor_item.last_run = startTime.ToString(CultureInfo.InvariantCulture);
+                            sensor_item.last_run = Schedule_Time.Format(startTime);
                             WriteEncryptedSensor(sensor, sensor_item);
 
                             bool triggered = false;
@@ -1676,7 +1685,10 @@ namespace Global.Sensors
                                     try
                                     {
                                         // Filter by time range and event ID
-                                        query = new EventLogQuery(sensor_item.eventlog, PathType.LogName, string.Format("*[System[(EventID={0}) and TimeCreated[@SystemTime >= '{1}'] and TimeCreated[@SystemTime <= '{2}']]]", sensor_item.eventlog_event_id, startTime.ToUniversalTime().ToString("o"), endTime.ToUniversalTime().ToString("o")));
+                                        // Iron Clad Support: upstream queried [startTime, endTime], both taken at the start of this run,
+                                        // so the window was empty. Evaluate everything since the previous run instead.
+                                        (DateTime event_window_from, DateTime event_window_to) = Schedule_Time.Since_Previous_Run(previous_last_run, startTime);
+                                        query = new EventLogQuery(sensor_item.eventlog, PathType.LogName, string.Format("*[System[(EventID={0}) and TimeCreated[@SystemTime >= '{1}'] and TimeCreated[@SystemTime < '{2}']]]", sensor_item.eventlog_event_id, event_window_from.ToUniversalTime().ToString("o"), event_window_to.ToUniversalTime().ToString("o")));
 
                                         reader = new EventLogReader(query);
 
@@ -1689,7 +1701,7 @@ namespace Global.Sensors
                                         {
                                             //Logging.Handler.Sensors("Sensors.Time_Scheduler.Check_Execution", "Found events", eventRecord.Id.ToString());
 
-                                            if (DateTime.Parse(sensor_item.last_run) > eventRecord.TimeCreated)
+                                            if (eventRecord.TimeCreated < event_window_from)
                                             {
                                                 Logging.Sensors("Sensors.Time_Scheduler.Check_Execution", "Check event time (" + eventRecord.TimeCreated + ")", "Last scan is newer than last event log.");
                                             }
