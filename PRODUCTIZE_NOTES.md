@@ -34,6 +34,13 @@ Implications:
 3. Upstream reporting: any security findings from this fork should go through upstream's preferred
    channel (a licensed instance), not AI analysis of the public code, per their policy.
 
+**Decision (Bill, 2026-09-24): option (a), license upstream and overlay.** Iron Clad Support will be
+delivered on upstream's licensed closed-source NetLock RMM. This fork is used only for branding and
+configuration overlays and as a source of upstream-contribution candidates. Consequences for open
+work: PRs #1–#8 are candidates to upstream or to re-apply as overlays where the licensed product
+allows. No further productization of the fork's stripped source. Autonomous work moves to the
+in-scope ICIT repos.
+
 ## Environment facts
 
 - `NetLock-RMM-Server` does **not** compile from the public upstream source: the closed-source
