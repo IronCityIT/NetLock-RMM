@@ -9,6 +9,38 @@ Repo visibility checked 2026-09-23: **PUBLIC** fork → normal PR/CI flow allowe
 > branch + PR, never merge, never deploy. The ICIT Python/`module_framework`/Firestore architecture
 > does not apply to this .NET RMM codebase.
 
+## ⚠ Productization blocker — the fork cannot produce a deployable build (decision needed)
+
+Recorded 2026-09-23. Evidence:
+- None of the product projects compile from this repository. Upstream strips closed-source parts
+  (`//OSSCH_START … //OSSCH_END`): server (Members_Portal, Operator_Info), agent and tray
+  (Global.Encryption.String_Encryption), web console (756 errors even after patching a stripped
+  closing brace and stubbing ThemePaletteConfig; installer creation, license, version-check and
+  cloud code are missing).
+- Upstream `SECURITY.md` states that the public code "reflects an early prototype of NetLock RMM and
+  no longer represents the architecture or security posture of the current product". The same file
+  asks that the public code not be analyzed with AI tools or used as the basis for vulnerability
+  reports; they prefer testing against a licensed self-hosted instance.
+
+Implications:
+1. Changes in this fork (PRs #1–#8) are verified by unit/regression tests on extracted logic plus
+   error-set comparisons. They cannot be built into, or deployed as, a working Iron Clad Support release
+   from this repo alone.
+2. Before more productization work, Bill needs to decide the delivery model. Options:
+   (a) license and deploy upstream's closed-source NetLock RMM and use this fork only for
+   configuration/branding overlays and upstream contributions; (b) re-implement the stripped parts
+   (large, AGPL-compliant, and effectively a hard fork of an unmaintained prototype); or
+   (c) choose another RMM base.
+3. Upstream reporting: any security findings from this fork should go through upstream's preferred
+   channel (a licensed instance), not AI analysis of the public code, per their policy.
+
+**Decision (Bill, 2026-09-24): option (a), license upstream and overlay.** Iron Clad Support will be
+delivered on upstream's licensed closed-source NetLock RMM. This fork is used only for branding and
+configuration overlays and as a source of upstream-contribution candidates. Consequences for open
+work: PRs #1–#8 are candidates to upstream or to re-apply as overlays where the licensed product
+allows. No further productization of the fork's stripped source. Autonomous work moves to the
+in-scope ICIT repos.
+
 ## Environment facts
 
 - `NetLock-RMM-Server` does **not** compile from the public upstream source: the closed-source
@@ -179,8 +211,24 @@ MariaDB with a temporary user, which was dropped afterwards.
 **CI evidence.** Run 35935599780 passed (11/41/16 tests, including the MariaDB-backed notification
 tests). It warned that Node 20 is deprecated, so the actions were moved to checkout@v7 and
 setup-dotnet@v6. Run 35935731030 then passed with the same counts and no annotations.
-**Embargo note.** The embargoed relay tests are not on this branch. When the relay branch is
-published, CI picks them up automatically.
+**Scope.** CI runs every test project on the branch; test files added later are picked up
+automatically.
+
+## Change 9 — Isolate Defender scan-job failures (priority 3)
+
+**Failure.** `Scan_Jobs_Scheduler.Check_Execution` had no per-job try/catch. The only catch wraps the
+whole loop, so one malformed job file or failing job aborted every remaining scan job on every cycle.
+**Fix.** A try/catch around each iteration logs and continues. The body is deliberately left
+unindented, so the upstream diff is 10 added lines (no re-indent) and merges stay clean.
+**Validation.** The agent compiles with 0 errors with the temporary encryption stub. A Roslyn-based
+regression test (`Scan_Job_Isolation_Tests`) asserts that the execution loop body is a single `try`
+with a catch. Agent tests 43/43. Against upstream the test fails for the right reason ("collection
+contained 8 items", i.e. unguarded statements).
+The first version of the test was wrong: it selected loops by directory, and there are two such loops
+(cleanup and execution), so it threw "more than one matching element" both with and without the fix,
+and its "fails on upstream" result meant nothing. It now selects the execution loop by its `job`
+variable, and both checks were re-run.
+Not validated: a live Defender scan (no Windows host).
 
 ## Verified (no change needed) — notification tenant scoping
 
@@ -206,8 +254,6 @@ event on that channel (fail closed). No cross-tenant delivery path was found. Re
    succeeded; other failed recipients are not retried.
 6. Remaining string-concatenated SQL in `Sender.cs` (`WHERE id = " + id`) — values come from the
    DB (int PK), low risk, but should be parameterised when touched.
-7. Scan-job loop (`Scan_Jobs_Scheduler.Check_Execution`) has no per-job try/catch: one malformed job
-   aborts the remaining jobs every cycle. Needs a re-indent of ~300 upstream lines; deferred to
-   keep upstream merges clean.
+7. ~~Scan-job loop has no per-job try/catch~~: fixed in Change 9.
 8. Upstream security advisory: `Microsoft.OpenApi` 2.4.1 (GHSA-v5pm-xwqc-g5wc, high) pulled in
    transitively by the server.
