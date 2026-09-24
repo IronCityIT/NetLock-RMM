@@ -9,6 +9,31 @@ Repo visibility checked 2026-09-23: **PUBLIC** fork → normal PR/CI flow allowe
 > branch + PR, never merge, never deploy. The ICIT Python/`module_framework`/Firestore architecture
 > does not apply to this .NET RMM codebase.
 
+## ⚠ Productization blocker — the fork cannot produce a deployable build (decision needed)
+
+Recorded 2026-09-23. Evidence:
+- None of the product projects compile from this repository. Upstream strips closed-source parts
+  (`//OSSCH_START … //OSSCH_END`): server (Members_Portal, Operator_Info), agent and tray
+  (Global.Encryption.String_Encryption), web console (756 errors even after patching a stripped
+  closing brace and stubbing ThemePaletteConfig; installer creation, license, version-check and
+  cloud code are missing).
+- Upstream `SECURITY.md` states that the public code "reflects an early prototype of NetLock RMM and
+  no longer represents the architecture or security posture of the current product". The same file
+  asks that the public code not be analyzed with AI tools or used as the basis for vulnerability
+  reports; they prefer testing against a licensed self-hosted instance.
+
+Implications:
+1. Changes in this fork (PRs #1–#8) are verified by unit/regression tests on extracted logic plus
+   error-set comparisons. They cannot be built into, or deployed as, a working Iron Clad Support release
+   from this repo alone.
+2. Before more productization work, Bill needs to decide the delivery model. Options:
+   (a) license and deploy upstream's closed-source NetLock RMM and use this fork only for
+   configuration/branding overlays and upstream contributions; (b) re-implement the stripped parts
+   (large, AGPL-compliant, and effectively a hard fork of an unmaintained prototype); or
+   (c) choose another RMM base.
+3. Upstream reporting: any security findings from this fork should go through upstream's preferred
+   channel (a licensed instance), not AI analysis of the public code, per their policy.
+
 ## Environment facts
 
 - `NetLock-RMM-Server` does **not** compile from the public upstream source: the closed-source
