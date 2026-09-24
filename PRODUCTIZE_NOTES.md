@@ -179,8 +179,24 @@ MariaDB with a temporary user, which was dropped afterwards.
 **CI evidence.** Run 35935599780 passed (11/41/16 tests, including the MariaDB-backed notification
 tests). It warned that Node 20 is deprecated, so the actions were moved to checkout@v7 and
 setup-dotnet@v6. Run 35935731030 then passed with the same counts and no annotations.
-**Embargo note.** The embargoed relay tests are not on this branch. When the relay branch is
-published, CI picks them up automatically.
+**Scope.** CI runs every test project on the branch; test files added later are picked up
+automatically.
+
+## Change 9 — Isolate Defender scan-job failures (priority 3)
+
+**Failure.** `Scan_Jobs_Scheduler.Check_Execution` had no per-job try/catch. The only catch wraps the
+whole loop, so one malformed job file or failing job aborted every remaining scan job on every cycle.
+**Fix.** A try/catch around each iteration logs and continues. The body is deliberately left
+unindented, so the upstream diff is 10 added lines (no re-indent) and merges stay clean.
+**Validation.** The agent compiles with 0 errors with the temporary encryption stub. A Roslyn-based
+regression test (`Scan_Job_Isolation_Tests`) asserts that the execution loop body is a single `try`
+with a catch. Agent tests 43/43. Against upstream the test fails for the right reason ("collection
+contained 8 items", i.e. unguarded statements).
+The first version of the test was wrong: it selected loops by directory, and there are two such loops
+(cleanup and execution), so it threw "more than one matching element" both with and without the fix,
+and its "fails on upstream" result meant nothing. It now selects the execution loop by its `job`
+variable, and both checks were re-run.
+Not validated: a live Defender scan (no Windows host).
 
 ## Verified (no change needed) — notification tenant scoping
 
@@ -206,8 +222,6 @@ event on that channel (fail closed). No cross-tenant delivery path was found. Re
    succeeded; other failed recipients are not retried.
 6. Remaining string-concatenated SQL in `Sender.cs` (`WHERE id = " + id`) — values come from the
    DB (int PK), low risk, but should be parameterised when touched.
-7. Scan-job loop (`Scan_Jobs_Scheduler.Check_Execution`) has no per-job try/catch: one malformed job
-   aborts the remaining jobs every cycle. Needs a re-indent of ~300 upstream lines; deferred to
-   keep upstream merges clean.
+7. ~~Scan-job loop has no per-job try/catch~~: fixed in Change 9.
 8. Upstream security advisory: `Microsoft.OpenApi` 2.4.1 (GHSA-v5pm-xwqc-g5wc, high) pulled in
    transitively by the server.

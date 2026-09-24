@@ -111,6 +111,11 @@ namespace Windows.Microsoft_Defender_Antivirus
                 // Now read & consume each scan job
                 foreach (var job in Directory.GetFiles(Application_Paths.program_data_microsoft_defender_antivirus_scan_jobs))
                 {
+                    // Iron Clad Support: isolate each scan job. Upstream had no per-job try, so one malformed
+                    // or failing job aborted every remaining job on every cycle. Body left unindented to keep
+                    // the upstream diff minimal.
+                    try
+                    {
                     string job_json = File.ReadAllText(job);
                     Scan_Job job_item = JsonSerializer.Deserialize<Scan_Job>(job_json);
 
@@ -477,6 +482,11 @@ namespace Windows.Microsoft_Defender_Antivirus
                     }
                     else
                         Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "Scan job will not be executed", "name: " + job_item.name + " id: " + job_item.id);
+                    }
+                    catch (Exception ex)
+                    {
+                        Logging.Error("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "Scan job failed, continuing with next job", "file: " + job + " error: " + ex.ToString());
+                    }
                 }
 
                 Logging.Microsoft_Defender_Antivirus("Microsoft_Defender_AntiVirus.Scan_Jobs.Check_Execution", "Check scan job execution", "Stop");
